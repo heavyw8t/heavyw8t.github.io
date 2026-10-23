@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bonding curves, line by line · Heavyw8t's Security Academy</title>
+<meta name="description" content="Launchpad curves from the price rule to graduation, with the bugs auditors find in them.">
+<link rel="icon" href="../assets/logo.jpg">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Heavyw8t's Security Academy">
+<meta property="og:title" content="Bonding curves, line by line">
+<meta property="og:description" content="Launchpad curves from the price rule to graduation, with the bugs auditors find in them.">
+<meta property="og:url" content="https://heavyw8t.github.io/academy/protocols/bonding-curves.html">
+<meta property="og:image" content="https://heavyw8t.github.io/academy/assets/banner.png">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Heavyw8t's Security Academy banner">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@heavyw8t_">
+<meta name="twitter:creator" content="@heavyw8t_">
+<link rel="stylesheet" href="../vendor/fonts/fonts.css">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}
+img{max-width:100%}
+[hidden]:not([hidden=until-found i]){display:none!important}
+/* Layout: graph-paper desk, sticky chapter rail left, one 720px paper column; colors carry fixed meaning (blue token, purple reserve/price, orange key quantity) */
+:root{
+  color-scheme:dark;
+  --bg:#0A0A0A; --grid:rgba(255,255,255,.035); --card:#141414; --ink:#F2F2F2; --muted:#A3A3A3; --rule:#2A2A2A; --code:#0F0F0F;
+  --tok:#5B9DFF; --tok-soft:rgba(91,157,255,.14);
+  --res:#B58CFF; --res-soft:rgba(181,140,255,.14);
+  --key:#FF7A1A; --key-soft:rgba(255,122,26,.14);
+  --ok:#4CC38A; --ok-soft:rgba(76,195,138,.12); --bad:#F25F5C; --bad-soft:rgba(242,95,92,.12);
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --serif:"Literata",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:70px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+body{background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:28px 28px;color:var(--ink);font:400 17px/1.68 var(--serif);padding-inline:16px;padding-block:72px 80px}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;line-height:1.12;margin:0}
+p{margin:0}
+a{color:var(--tok)}
+:focus-visible{outline:2px solid var(--key);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono)}
+.vt{color:var(--tok)} .vr{color:var(--res)} .vk{color:var(--key)}
+b.vt,b.vr,b.vk{font-weight:600}
+
+/* top bar */
+.topbar{position:fixed;inset:0 0 auto 0;z-index:20;padding-top:env(safe-area-inset-top,0px);background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule)}
+.bar{height:3px;background:var(--rule)}
+.bar i{display:block;height:100%;width:0;background:var(--key)}
+.topin{max-width:1100px;margin:0 auto;padding:8px 16px;display:flex;gap:16px;align-items:center;justify-content:space-between;font:12px/1.4 var(--mono);color:var(--muted)}
+.topin strong{font:700 14px var(--display);color:var(--ink);letter-spacing:.01em;white-space:nowrap}
+#score{text-align:right;font-variant-numeric:tabular-nums}
+#score b{color:var(--ink)}
+@media(max-width:600px){.topin strong{display:none}}
+
+.layout{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:56px;justify-content:center}
+@media(min-width:1080px){.layout{grid-template-columns:190px minmax(0,720px)}}
+.rail{display:none}
+@media(min-width:1080px){.rail{display:block;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);align-self:start}}
+.rail ol{list-style:none;margin:0;padding:0;display:grid;gap:2px;border-left:1px solid var(--rule)}
+.rail a{display:flex;gap:10px;padding:5px 12px;font:13px/1.3 var(--display);color:var(--muted);text-decoration:none;border-left:2px solid transparent;margin-left:-1px}
+.rail a span{font:11px/1.6 var(--mono);min-width:20px}
+.rail a:hover{color:var(--ink)}
+.rail a.on{color:var(--ink);border-left-color:var(--key);font-weight:600}
+.rail .legend{margin-top:22px;display:grid;gap:6px;font:11px var(--mono);color:var(--muted)}
+.rail .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;vertical-align:-1px}
+
+main{min-width:0;display:grid;gap:30px}
+.paper{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:clamp(20px,4vw,40px);display:grid;gap:22px;min-width:0}
+.prose{display:grid;gap:14px}
+.eyebrow{font:600 11.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lead{font-size:19px;line-height:1.6}
+
+/* hero */
+.hero h1{font-size:clamp(38px,7vw,62px);font-weight:800;letter-spacing:-.02em}
+.hero h1 em{font-style:normal;color:var(--key)}
+.hero svg{width:100%;height:auto;display:block}
+
+/* chapter header */
+.chap{display:grid;gap:10px;padding-top:6px}
+.mark{font:800 clamp(88px,16vw,150px)/.8 var(--display);letter-spacing:-.04em}
+.mark small{font:600 clamp(18px,3vw,24px) var(--display);letter-spacing:0;margin-left:10px;color:var(--ink);vertical-align:top}
+.chap h2{font-size:clamp(26px,4.4vw,34px);font-weight:700;letter-spacing:-.01em;max-width:30ch}
+h3{font-size:19px;font-weight:700;letter-spacing:.005em}
+
+/* terms */
+dfn{font-style:normal;text-decoration:underline dotted;text-decoration-thickness:1.5px;text-underline-offset:3px;cursor:help;text-decoration-color:var(--muted)}
+#tip{position:absolute;z-index:40;max-width:300px;background:var(--card);color:var(--ink);font:13.5px/1.5 var(--serif);padding:10px 12px;border:1px solid var(--key);border-radius:8px;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.6)}
+#tip b{font-family:var(--display);display:block;margin-bottom:2px;color:var(--key)}
+
+/* formula */
+.formula{border:1px solid var(--rule);border-radius:10px;padding:22px 18px 16px;display:grid;gap:14px;background:linear-gradient(var(--card),var(--card)) padding-box;text-align:center}
+.formula .fx{font:400 clamp(21px,4vw,30px)/1.5 var(--serif);overflow-x:auto;overflow-y:hidden;padding-bottom:2px}
+.formula .fx i{font-style:italic}
+.formula .fcap{font-size:15px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px;max-width:56ch;margin:0 auto}
+.formula .fcap b{color:var(--ink);font-family:var(--display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-right:6px}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.82em;line-height:1.2;margin:0 .15em}
+.frac>span:first-child{border-bottom:1.5px solid currentColor;padding:0 .2em}
+.formula sub,.formula sup{font-size:.6em}
+
+/* symbols */
+.syms{border:1px solid var(--rule);border-radius:10px;padding:16px 18px}
+.syms h4,.box-title{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.syms dl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:0}
+.syms dt{font:italic 19px/1.4 var(--serif);text-align:right;min-width:44px}
+.syms dd{margin:0;font-size:15.5px;line-height:1.5;align-self:center}
+
+.plain{border-top:1px solid var(--rule);padding:12px 0 0;font-size:16px}
+.plain b{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;display:block;color:var(--res);margin-bottom:4px}
+
+/* worked example */
+.worked{display:grid;gap:10px}
+.worked ol{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:12px}
+.worked li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:4px 12px;font-size:16px}
+.worked li::before{content:counter(s);font:600 12px/26px var(--mono);width:26px;height:26px;text-align:center;border-radius:50%;border:1px solid var(--rule);color:var(--muted);grid-row:span 2}
+.calc{font:13.5px/1.55 var(--mono);background:var(--code);border:1px solid var(--rule);border-radius:8px;padding:8px 12px;white-space:pre-wrap;overflow-wrap:break-word;font-variant-numeric:tabular-nums}
+.calc .eq{color:var(--key);font-weight:600}
+
+/* figure */
+.figure{border:1px solid var(--rule);border-radius:12px;padding:16px;display:grid;gap:14px;min-width:0}
+.figure figcaption{font-size:15px;color:var(--muted)}
+.figure figcaption b{font:700 15px var(--display);color:var(--ink);margin-right:4px}
+.figure svg{width:100%;height:auto;display:block;overflow:visible}
+.ctls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px}
+.ctl{display:grid;gap:4px;font:12.5px var(--mono);color:var(--muted)}
+.ctl span{display:flex;justify-content:space-between;gap:8px}
+.ctl b{color:var(--ink);font-variant-numeric:tabular-nums}
+.ctl input{width:100%;accent-color:var(--tok)}
+.ctl.r input{accent-color:var(--res)} .ctl.k input{accent-color:var(--key)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.tile{border:1px solid var(--rule);border-radius:8px;padding:9px 12px;display:grid;gap:2px;min-width:0}
+.tile .tl{font:11px var(--mono);color:var(--muted);letter-spacing:.04em}
+.tile .tv{font:600 19px/1.3 var(--mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile.key{border-color:var(--key);background:var(--key-soft)} .tile.key .tv{color:var(--key)}
+.tv.pos{color:var(--ok)} .tv.neg{color:var(--bad)}
+.legendrow{display:flex;flex-wrap:wrap;gap:6px 16px;font:12px var(--mono);color:var(--muted)}
+.legendrow i{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+/* svg */
+.gl{stroke:var(--rule);stroke-width:1}
+.ax{stroke:var(--muted);stroke-width:1.2}
+.tk{fill:var(--muted);font:12px var(--mono)}
+.axl{font:600 12.5px var(--mono)}
+.c-tok{fill:var(--tok)} .c-res{fill:var(--res)} .c-key{fill:var(--key)} .c-mut{fill:var(--muted)} .c-ink{fill:var(--ink)}
+.ln-res{fill:none;stroke:var(--res);stroke-width:2.6}
+.ln-tok{fill:none;stroke:var(--tok);stroke-width:2.6}
+.ln-faint{fill:none;stroke:var(--muted);stroke-width:1.3;opacity:.45}
+.ln-key{fill:none;stroke:var(--key);stroke-width:3.2}
+.ln-mut{fill:none;stroke:var(--muted);stroke-width:2}
+.ar-key{fill:var(--key);fill-opacity:.22;stroke:var(--key);stroke-width:1.4}
+.ar-key-o{fill:none;stroke:var(--key);stroke-width:1.4;stroke-dasharray:4 4}
+.ar-res{fill:var(--res);fill-opacity:.16}
+.ar-mut{fill:var(--muted);fill-opacity:.22}
+.dash{stroke-dasharray:5 5}
+.grad{stroke:var(--ok);stroke-width:1.6;stroke-dasharray:6 4}
+.lbl{font:600 12px var(--mono)}
+.halo{paint-order:stroke;stroke:var(--card);stroke-width:4px}
+
+/* quiz */
+.quiz{border:1px solid var(--key);border-radius:12px;padding:18px;display:grid;gap:12px}
+.quiz .qh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.quiz .qtag{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.quiz .qstate{font:12px var(--mono);color:var(--muted)}
+.quiz .q{font-size:17px}
+.opts{display:grid;gap:8px}
+.opts button{font:15.5px/1.45 var(--serif);text-align:left;color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:10px 14px;cursor:pointer;display:flex;gap:12px;align-items:baseline}
+.opts button code{font-size:13.5px}
+.opts button::before{content:attr(data-k);font:600 12px var(--mono);color:var(--muted);text-transform:uppercase}
+.opts button:hover:not(:disabled){border-color:var(--muted)}
+.opts button:disabled{cursor:default}
+.opts button.right{border-color:var(--ok);background:var(--ok-soft)}
+.opts button.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.explain{font-size:15.5px;border-top:1px solid var(--rule);padding-top:10px}
+.explain .verdict{font-family:var(--display);font-weight:700;margin-right:6px}
+.verdict.ok{color:var(--ok)} .verdict.no{color:var(--bad)}
+.explain dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0}
+.explain dt{font:600 12px/1.9 var(--mono);color:var(--muted);text-transform:uppercase}
+.explain dd{margin:0}
+.numrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.numrow input{font:16px var(--mono);width:170px;max-width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--card);color:var(--ink);font-variant-numeric:tabular-nums}
+.numrow .unit{font:13px var(--mono);color:var(--muted)}
+.btn{font:600 13.5px var(--display);padding:9px 14px;border-radius:8px;border:1px solid var(--ink);background:var(--ink);color:var(--card);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+.fb{font-size:15px;min-height:1.4em}
+.fb.ok{color:var(--ok)} .fb.no{color:var(--bad)}
+.steps{margin:0;padding-left:20px;display:grid;gap:6px;font-size:15px}
+
+/* code */
+pre.sol{margin:0;font:13px/1.6 var(--mono);background:var(--code);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;overflow-x:auto;tab-size:4}
+.sol .kw{color:var(--tok)} .sol .num{color:var(--res)} .sol .str{color:var(--ok)} .sol .cm{color:var(--muted);font-style:italic}
+code{font-family:var(--mono);font-size:.86em;background:var(--code);border:1px solid var(--rule);border-radius:4px;padding:0 4px}
+
+.note{border:1.5px dashed var(--muted);border-radius:10px;padding:14px 18px;font-size:15.5px;display:grid;gap:6px}
+.note .box-title{margin:0}
+
+/* security */
+.sec{border:1px solid var(--rule);border-top:5px solid var(--ink);border-radius:10px;padding:16px 18px;display:grid;gap:12px}
+.sec .sech{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sec h4{font:700 17px var(--display)}
+.sec .cnt{font:12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.sec ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.sec li{display:grid;gap:4px;padding-top:12px;border-top:1px solid var(--rule)}
+.sec li:first-child{border-top:0;padding-top:0}
+.sec label{display:flex;gap:10px;align-items:flex-start;font:600 16px/1.4 var(--display);cursor:pointer}
+.sec input[type=checkbox]{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--ok)}
+.sec .one{font-size:15px;color:var(--muted);padding-left:28px}
+.sec details{padding-left:28px;font-size:15px}
+.sec summary{font:600 12.5px var(--mono);color:var(--tok);cursor:pointer;width:max-content}
+.sec details dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;margin:8px 0 2px}
+.sec details dt{font:600 11.5px/1.9 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sec details dd{margin:0}
+
+/* table */
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+thead th{font:700 13.5px var(--display);background:var(--code)}
+tbody th{font:600 12px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+td.f{font-family:var(--serif);font-style:italic;white-space:nowrap}
+tr:last-child th,tr:last-child td{border-bottom:0}
+
+/* dictionary */
+.dictctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+#dq{font:15px var(--mono);padding:9px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--card);color:var(--ink);flex:1 1 220px;min-width:0}
+#dcount{font:12px var(--mono);color:var(--muted)}
+.letters{display:flex;flex-wrap:wrap;gap:4px}
+.letters button{font:600 12px var(--mono);width:28px;height:28px;border-radius:6px;border:1px solid var(--rule);background:var(--card);color:var(--ink);cursor:pointer}
+.letters button:disabled{opacity:.3;cursor:default}
+.letters button.on{background:var(--ink);color:var(--card)}
+#dict{display:grid;gap:4px}
+.dgroup{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding-top:12px;border-top:1px solid var(--rule)}
+.dgroup>span{font:800 28px/1 var(--display);color:var(--muted)}
+.dgroup dl{margin:0;display:grid;gap:10px}
+.dgroup dt{font:700 16px var(--display)}
+.dgroup dd{margin:0;font-size:15.5px;color:var(--ink)}
+.musts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.musts div{border:1px solid var(--rule);border-radius:10px;padding:12px 14px;font-size:15px;display:grid;gap:4px}
+.musts b{font:700 16px var(--display)}
+.pgroup{display:grid;gap:10px;padding-top:6px}
+.pgroup h3{font-size:21px}
+.pnote{font-size:15.5px;color:var(--muted)}
+.ptab td:first-child{white-space:nowrap}
+.ptab td b{font-family:var(--display)}
+footer{font:12px var(--mono);color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:no-preference){.opts button,.bar i{transition:background-color .15s,border-color .15s,width .1s linear}}
+.phases{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;counter-reset:ph}
+.phases li{border:1px solid var(--rule);border-top:4px solid var(--tok);border-radius:8px;padding:10px 12px;font-size:14.5px;line-height:1.5;display:grid;gap:4px;align-content:start;counter-increment:ph}
+.phases li:nth-child(2){border-top-color:var(--res)} .phases li:nth-child(3){border-top-color:var(--key)} .phases li:nth-child(4){border-top-color:var(--ok)}
+.phases b{font:700 15px var(--display)} .phases b::before{content:counter(ph) " · ";font:600 12px var(--mono);color:var(--muted)}
+.twocol{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.twocol>div{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:grid;gap:8px;align-content:start}
+.twocol h4{font:700 16px var(--display)} .twocol ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:15.5px}
+.xref{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 14px;align-items:center;border:1px solid var(--tok);background:var(--tok-soft);border-radius:10px;padding:14px 16px;text-decoration:none;color:var(--ink)}
+.xref .arr{font:800 30px/1 var(--display);color:var(--tok);grid-row:span 2}
+.xref b{font:700 16px var(--display);color:var(--tok)} .xref span:last-child{font-size:15px}
+.xref:hover{border-color:var(--ink)}
+.explain .verdict{display:block;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+
+<div class="topbar" role="banner">
+  <div class="bar"><i id="prog"></i></div>
+  <div class="topin"><span><a class="back" href="index.html" style="color:var(--key);text-decoration:none;font:600 13px var(--display);margin-right:14px;white-space:nowrap">&larr; Protocols</a><strong>Bonding curves, line by line</strong></span><span id="score" aria-live="polite">You answered 0 of 0, 0 right on the first try.</span></div>
+</div>
+<div id="tip" hidden role="tooltip"></div>
+
+<div class="layout">
+<nav class="rail" aria-label="Chapters">
+  <ol>
+    <li><a href="#intro"><span>00</span>Start here</a></li>
+    <li><a href="#ch1"><span>01</span>Why curves exist</a></li>
+    <li><a href="#ch2"><span>02</span>Constant product</a></li>
+    <li><a href="#ch3"><span>03</span>Trading, sandwiches</a></li>
+        <li><a href="#ch4"><span>04</span>Graduation</a></li>
+    <li><a href="#compare"><span>⇄</span>Curve vs pool</a></li>
+    <li><a href="#protocols"><span>↗</span>Who uses it</a></li>
+    <li><a href="#dictionary"><span>A–Z</span>Dictionary</a></li>
+  </ol>
+  <div class="legend">
+    <div><i style="background:var(--tok)"></i>token, supply</div>
+    <div><i style="background:var(--res)"></i>reserve, price</div>
+    <div><i style="background:var(--key)"></i>key result</div>
+  </div>
+</nav>
+
+<main>
+<!-- INTRO -->
+<section class="paper hero" id="intro">
+  <p class="eyebrow">4 chapters · 14 questions</p>
+  <h1>Bonding curves: how launchpads price a token, and where the <em>bugs</em> are</h1>
+  <figure style="margin:0;display:grid;gap:6px">
+    <svg viewBox="0 0 640 130" role="img" aria-label="Price against tokens sold on a constant-product launch curve, with one buy shaded">
+    <line x1="40" y1="108" x2="630" y2="108" stroke="var(--muted)" stroke-width="1.2"/>
+    <line x1="40" y1="6" x2="40" y2="108" stroke="var(--muted)" stroke-width="1.2"/>
+    <path d="M369.1 108 L369.1 95.3 L372.7 95.1 L376.4 94.8 L380.0 94.6 L383.7 94.3 L387.3 94.1 L391.0 93.8 L394.7 93.5 L398.3 93.2 L402.0 92.9 L405.6 92.6 L409.3 92.3 L412.9 92.0 L416.6 91.7 L420.2 91.3 L423.9 91.0 L427.6 90.6 L431.2 90.2 L434.9 89.9 L438.5 89.5 L442.2 89.0 L445.8 88.6 L449.5 88.2 L453.2 87.7 L456.8 87.2 L460.5 86.7 L464.1 86.2 L467.8 85.7 L471.4 85.2 L475.1 84.6 L478.8 84.0 L478.8 108Z" fill="var(--key)" fill-opacity=".25" stroke="var(--key)" stroke-width="1.2"/>
+    <path d="M40.0 104.2 L42.9 104.1 L45.9 104.1 L48.8 104.1 L51.7 104.0 L54.6 104.0 L57.5 104.0 L60.5 103.9 L63.4 103.9 L66.3 103.9 L69.2 103.8 L72.2 103.8 L75.1 103.8 L78.0 103.7 L81.0 103.7 L83.9 103.7 L86.8 103.6 L89.7 103.6 L92.7 103.5 L95.6 103.5 L98.5 103.5 L101.4 103.4 L104.3 103.4 L107.3 103.3 L110.2 103.3 L113.1 103.3 L116.0 103.2 L119.0 103.2 L121.9 103.1 L124.8 103.1 L127.8 103.0 L130.7 103.0 L133.6 102.9 L136.5 102.9 L139.4 102.9 L142.4 102.8 L145.3 102.8 L148.2 102.7 L151.2 102.7 L154.1 102.6 L157.0 102.6 L159.9 102.5 L162.8 102.5 L165.8 102.4 L168.7 102.3 L171.6 102.3 L174.6 102.2 L177.5 102.2 L180.4 102.1 L183.3 102.1 L186.2 102.0 L189.2 101.9 L192.1 101.9 L195.0 101.8 L198.0 101.8 L200.9 101.7 L203.8 101.6 L206.7 101.6 L209.6 101.5 L212.6 101.4 L215.5 101.4 L218.4 101.3 L221.3 101.2 L224.3 101.1 L227.2 101.1 L230.1 101.0 L233.1 100.9 L236.0 100.8 L238.9 100.8 L241.8 100.7 L244.8 100.6 L247.7 100.5 L250.6 100.4 L253.5 100.3 L256.4 100.3 L259.4 100.2 L262.3 100.1 L265.2 100.0 L268.1 99.9 L271.1 99.8 L274.0 99.7 L276.9 99.6 L279.9 99.5 L282.8 99.4 L285.7 99.3 L288.6 99.2 L291.5 99.1 L294.5 99.0 L297.4 98.9 L300.3 98.7 L303.2 98.6 L306.2 98.5 L309.1 98.4 L312.0 98.3 L314.9 98.1 L317.9 98.0 L320.8 97.9 L323.7 97.7 L326.6 97.6 L329.6 97.5 L332.5 97.3 L335.4 97.2 L338.4 97.0 L341.3 96.9 L344.2 96.7 L347.1 96.6 L350.1 96.4 L353.0 96.3 L355.9 96.1 L358.8 95.9 L361.8 95.8 L364.7 95.6 L367.6 95.4 L370.5 95.2 L373.4 95.0 L376.4 94.8 L379.3 94.6 L382.2 94.4 L385.1 94.2 L388.1 94.0 L391.0 93.8 L393.9 93.6 L396.8 93.4 L399.8 93.1 L402.7 92.9 L405.6 92.6 L408.6 92.4 L411.5 92.1 L414.4 91.9 L417.3 91.6 L420.2 91.3 L423.2 91.1 L426.1 90.8 L429.0 90.5 L432.0 90.2 L434.9 89.9 L437.8 89.5 L440.7 89.2 L443.6 88.9 L446.6 88.5 L449.5 88.2 L452.4 87.8 L455.3 87.4 L458.3 87.0 L461.2 86.6 L464.1 86.2 L467.1 85.8 L470.0 85.4 L472.9 84.9 L475.8 84.5 L478.8 84.0 L481.7 83.5 L484.6 83.0 L487.5 82.5 L490.4 82.0 L493.4 81.4 L496.3 80.8 L499.2 80.3 L502.2 79.6 L505.1 79.0 L508.0 78.4 L510.9 77.7 L513.9 77.0 L516.8 76.3 L519.7 75.6 L522.6 74.8 L525.5 74.0 L528.5 73.2 L531.4 72.3 L534.3 71.4 L537.2 70.5 L540.2 69.5 L543.1 68.6 L546.0 67.5 L549.0 66.4 L551.9 65.3 L554.8 64.2 L557.7 63.0 L560.6 61.7 L563.6 60.4 L566.5 59.0 L569.4 57.6 L572.4 56.1 L575.3 54.5 L578.2 52.9 L581.1 51.2 L584.1 49.4 L587.0 47.5 L589.9 45.6 L592.8 43.5 L595.8 41.3 L598.7 39.1 L601.6 36.7 L604.5 34.1 L607.4 31.5 L610.4 28.7 L613.3 25.7 L616.2 22.6 L619.1 19.2 L622.1 15.7 L625.0 12.0" fill="none" stroke="var(--res)" stroke-width="3"/>
+    <line x1="625" y1="12" x2="625" y2="108" stroke="var(--ok)" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <circle cx="625" cy="12" r="4.5" fill="var(--res)"/>
+    <text x="616" y="20" class="lbl halo c-mut" text-anchor="end">graduates · 25× start price</text>
+    <text x="424" y="102" class="lbl halo c-key" text-anchor="middle">a buy pays this area</text>
+    <text x="40" y="124" class="lbl c-tok">0</text>
+    <text x="625" y="124" class="lbl c-tok" text-anchor="end">800M tokens sold →</text>
+    <text x="14" y="60" class="lbl c-res" transform="rotate(-90 14 60)" text-anchor="middle">price</text>
+  </svg>
+  <figcaption style="font:12px var(--mono);color:var(--muted)">Price from the chapter 2 formula, price = 30,000 / (1,000 − tokens sold)², in quote per million tokens. It starts at 0.03 and ends at 0.75.</figcaption>
+</figure>
+
+  <div class="prose">
+    <p class="lead">A <dfn data-t="bondingcurve">bonding curve</dfn> is a contract that sells a token and buys it back at a price set by a formula. The formula only looks at how many tokens have been sold so far, so every buy makes the next token a bit more expensive and every sell makes it cheaper.</p>
+    <p>Most memecoin launchpads use the curve that pump.fun made popular: Uniswap's x · y = k formula with virtual starting reserves. This lesson follows one example launch from start to end. Chapter 1 explains why launchpads use a curve instead of a normal pool. Chapter 2 covers the formula and the real money behind it, chapter 3 buying and selling, and chapter 4 how the token moves to a real pool at the end. Every chapter uses the same numbers, and chapters 2 to 4 end with a list of things to check in the code. Some quiz questions show a short Solidity function with one bug in it.</p>
+  </div>
+  <div class="note"><p class="box-title">One example, not the only design</p><p>This lesson follows one simple launch so the numbers stay easy to check. Real launchpads differ in almost every detail. Some use other curve shapes, such as linear, fixed-price or curves built from several price ranges. They graduate into different pools: Uniswap V2, V3 or V4, PancakeSwap, Raydium, PumpSwap or Meteora, and some lock the LP tokens instead of burning them. Fees vary too: some pay the creator a share of every trade, most charge a protocol fee, and some take a fee at graduation.</p></div>
+
+  <div class="syms">
+    <h4>How to read the formulas</h4>
+    <dl>
+      <dt class="vr">x</dt><dd><b class="vr">Purple</b> marks money. <i>x</i> is the amount of backing currency, such as SOL or ETH, in the formula. It starts above zero; chapter 2 explains why.</dd>
+      <dt class="vt">y</dt><dd><b class="vt">Blue</b> marks tokens. <i>y</i> is the number of tokens in the formula. It goes down as people buy.</dd>
+      <dt class="vk">Δy</dt><dd><b class="vk">Orange</b> marks the number being worked out, for example the tokens a buyer gets.</dd>
+      <dt>Δ</dt><dd>Means "change in". <i>Δx</i> is the money a buyer pays in.</dd>
+    </dl>
+  </div>
+
+  <div class="musts">
+    <div><b>Quote token</b><span>The currency you pay with: SOL, ETH or USDC. This lesson calls it the <dfn data-t="quote">quote token</dfn>, or just quote.</span></div>
+    <div><b>Tokens sold</b><span>How many of the new tokens the curve has handed out. Pump.fun-style curves <dfn data-t="mint">mint</dfn> the whole supply at launch and hand it out; other designs mint on each buy. The price depends only on this number.</span></div>
+    <div><b>Reserve</b><span>The quote buyers have actually paid in. This is the <dfn data-t="reserve">reserve</dfn>, and every sell is paid out of it.</span></div>
+  </div>
+</section>
+
+<!-- CH1 -->
+<section class="paper" id="ch1">
+  <header class="chap">
+    <div class="mark vt">01<small>Why curves exist</small></div>
+    <p class="eyebrow">Chapter 1 of 4</p>
+    <h2>A new token has nobody to trade with, so the contract trades with you itself</h2>
+  </header>
+  <div class="prose">
+    <p>To buy a token, someone has to sell it to you. That someone is the <dfn data-t="counterparty">counterparty</dfn>. Nobody has bought a token created a minute ago, and it has no pool, so there is nobody to trade with and no price.</p>
+    <h3>Before launchpads: the creator seeds a pool</h3>
+    <p>Before launchpads, the creator put the new token and some of their own ETH into an <dfn data-t="amm">AMM</dfn> pool, and everyone traded against that pool's <dfn data-t="liquidity">liquidity</dfn>. This had three problems. The creator needed ETH up front. The creator picked the opening price by choosing how much of each to deposit. And the creator got the pool's <dfn data-t="lp">LP tokens</dfn>, so they could withdraw all the ETH at any time and leave buyers holding a token nobody could sell. That is one way to <dfn data-t="rugpull">rug pull</dfn>.</p>
+    <h3>With a curve, the contract is the counterparty</h3>
+    <p>A bonding curve contract sells tokens to anyone who pays and buys them back from anyone who sells. The price comes from the formula, so you can work it out before you trade. Buys push it up and sells push it down.</p>
+    <p>Nobody has to deposit anything to start. The opening price comes from constants set at launch, and after that only trading moves it. This is <dfn data-t="discovery">price discovery</dfn>. There are no LP tokens, so nobody has a claim on the money buyers paid in. The only way to get money out is to sell tokens back to the curve.</p>
+  </div>
+  <div class="plain"><b>In short</b>The contract sells its token and buys it back at a price anyone can calculate. Each sale raises the price and each buyback lowers it. In a correctly written contract, nobody, the creator included, can take buyers' money out except by selling tokens back.</div>
+
+  <ol class="phases">
+    <li><b>Launch</b><span>Someone creates the token through the launchpad. The formula's starting values set the first price. Nobody deposits money.</span></li>
+    <li><b>Trading on the curve</b><span>Anyone can buy from or sell to the contract at the formula's price.</span></li>
+    <li><b>Graduation</b><span>When enough money has come in, the curve stops trading and moves the money and a set amount of tokens into an AMM pool.</span></li>
+    <li><b>AMM pool</b><span>The token now trades like any other. The launchpad burns the pool's LP tokens, so nobody can withdraw the liquidity.</span></li>
+  </ol>
+
+  <div class="twocol">
+    <div><h4 class="vt">What the curve guarantees</h4><ul><li>Until graduation, you can always buy from or sell to the contract.</li><li>You can calculate the price before you trade.</li><li>Money paid in stays in the contract until someone sells.</li></ul></div>
+    <div><h4 class="vr">What it does not guarantee</h4><ul><li>That you get in first. Bots often buy in the launch block.</li><li>That the price is fair. It only shows what the last buyers paid.</li><li>That the contract has no bugs.</li></ul></div>
+  </div>
+
+  <div class="prose">
+    <h3>Why the curve ends</h3>
+    <p>The curve only sells part of the supply, and you can only trade on it through the launchpad. Wallets, DEX aggregators and other protocols work with normal pools. So when enough money has come in, the contract puts that money and a matching amount of tokens into an AMM pool and stops trading. This is <dfn data-t="graduation">graduation</dfn>, covered in chapter 4.</p>
+  </div>
+
+  <figure class="figure" id="f1">
+    <figcaption><b>The whole launch.</b> Move the slider to change how many tokens have been sold. The purple area under the price line is the money buyers have paid in. Leaving fees aside, if everyone sold back, the curve would pay out exactly that amount.</figcaption>
+    <svg id="f1svg" viewBox="0 0 640 300" role="img" aria-label="Price against tokens sold with the money paid in shaded"></svg>
+    <div class="ctls">
+      <label class="ctl"><span>Tokens sold <b id="f1-sv"></b></span><input type="range" id="f1-s" min="0" max="800" step="10" value="250"></label>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="tl">Phase</span><span class="tv" id="f1-ph"></span></div>
+      <div class="tile"><span class="tl">Price vs launch</span><span class="tv vr" id="f1-x"></span></div>
+      <div class="tile key"><span class="tl">Money in the contract</span><span class="tv" id="f1-r"></span></div>
+      <div class="tile"><span class="tl">Market cap</span><span class="tv" id="f1-m"></span></div>
+    </div>
+  </figure>
+
+  <div class="quiz" data-quiz="mcq" id="q1" data-answer="b">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">Why doesn't the creator have to put in any money when launching on a bonding curve?</p>
+    <div class="opts"><button data-k="a">Early buyers deposit both tokens into a pool</button><button data-k="b">The contract itself buys and sells at formula prices</button><button data-k="c">The launchpad lends liquidity until graduation</button></div>
+    <div class="explain" hidden><p>The contract itself sells to the first buyer, at a price the formula gets from its starting values. There is no pool until graduation, and nobody lends anything.</p><dl><dt>Why not a</dt><dd>There is no pool before graduation, and buyers deposit nothing. They pay quote and get tokens from the contract.</dd><dt>Why not c</dt><dd>Nobody lends anything. The opening price comes from virtual reserves, which only exist in the formula.</dd></dl></div>
+  </div>
+  <div class="quiz" data-quiz="mcq" id="q2" data-answer="a">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">A creator who seeded a pool could pull the liquidity out. Why can't they do the same with a curve?</p>
+    <div class="opts"><button data-k="a">Selling tokens back is the only way money leaves</button><button data-k="b">The creator's tokens are locked until graduation</button><button data-k="c">The money sits with the exchange, not the contract</button></div>
+    <div class="explain" hidden><p>A curve has no LP tokens, so no address has a claim on the money in it. Money only leaves when someone sells tokens back at the formula's price. The creator can still sell their own tokens, and a buggy or malicious admin function can still drain the contract. That is what you check in an audit.</p><dl><dt>Why not b</dt><dd>Locking the creator's tokens stops them selling, but it has nothing to do with the money in the contract. Many curves don't lock them at all.</dd><dt>Why not c</dt><dd>The money sits in the curve contract itself. No exchange holds it.</dd></dl></div>
+  </div>
+</section>
+
+<!-- CH2 -->
+<section class="paper" id="ch2">
+  <header class="chap">
+    <div class="mark vk">02<small>Constant product</small></div>
+    <p class="eyebrow">Chapter 2 of 4</p>
+    <h2>The x · y = k formula, with virtual starting reserves</h2>
+  </header>
+  <a class="xref" href="uniswap-math.html#the-constant-product-rule"><span class="arr">→</span><b>Full derivation on the Uniswap lesson</b><span>This chapter is the short version. The Uniswap lesson derives x · y = k step by step and covers fees and price impact.</span></a>
+  <div class="prose">
+    <p>A Uniswap V2 pool holds two tokens and only allows trades that keep the two amounts multiplied together the same (ignoring fees, which make it grow a little). That is the <dfn data-t="cp">constant product</dfn> rule, <i>x</i> · <i>y</i> = <i>k</i>, and <i>k</i> is called the <dfn data-t="invariant">invariant</dfn>. When you pay quote in, <i>x</i> goes up, so <i>y</i> has to go down to keep the product at <i>k</i>. The tokens taken off <i>y</i> are what you get.</p>
+    <p>A launch curve uses the same rule, but it starts with no money, and with <i>x</i> = 0 both the product and the price are 0. So the contract does its math as if it already held 30 quote and 1,000,000,000 tokens. These are <dfn data-t="virtual">virtual reserves</dfn>. They only exist in the formula, they set the opening price, and they can never be paid out.</p>
+    <p>The price of the next token, the <dfn data-t="spot">spot price</dfn>, is <i>x</i> divided by <i>y</i>. In this example the curve sells 800M tokens and stops when <i>y</i> reaches 200M. Those last 200M are never sold on the curve; chapter 4 shows where they go.</p>
+  </div>
+  <div class="formula">
+    <div class="fx"><i class="vr">x</i> · <i class="vt">y</i> = <i>k</i></div>
+    <p class="fcap"><b>In words</b><i>x</i> times <i>y</i> is the same before and after every trade.</p>
+    <div class="fx"><i class="vk">Δy</i> = <i class="vt">y</i> − <span class="frac"><span><i>k</i></span><span><i class="vr">x</i> + <i class="vr">Δx</i></span></span> &nbsp;&nbsp; <i class="vr">p</i> = <span class="frac"><span><i class="vr">x</i></span><span><i class="vt">y</i></span></span></div>
+    <p class="fcap"><b>In words</b>To find the tokens you get, add your quote to <i>x</i>, divide <i>k</i> by the new <i>x</i> to get the new <i>y</i>, and subtract that from the old <i>y</i>. The spot price is <i>x</i> over <i>y</i>.</p>
+  </div>
+  <div class="syms">
+    <h4>Symbols in play</h4>
+    <dl>
+      <dt class="vr">x</dt><dd>Quote in the formula. Starts at 30, all of it virtual. Real money raised is <i>x</i> − 30.</dd>
+      <dt class="vt">y</dt><dd>Tokens in the formula, in millions. Starts at 1,000.</dd>
+      <dt>k</dt><dd>Invariant. 30 × 1,000 = 30,000 (quote × million tokens).</dd>
+      <dt class="vr">Δx</dt><dd>Quote you pay in.</dd>
+      <dt class="vk">Δy</dt><dd>Tokens you receive, in millions.</dd>
+      <dt class="vr">p</dt><dd>Spot price, in quote per million tokens.</dd>
+    </dl>
+  </div>
+  <div class="plain"><b>In short</b>Think of <i>x</i> and <i>y</i> as the width and height of a rectangle whose area must stay 30,000. Paying in makes it wider, so it has to get shorter, and the height it loses is the tokens you get. The wider it already is, the less height each extra unit of width removes. That is why the price goes up.</div>
+  <div class="worked">
+    <h3>Worked example: buy with 10 quote at launch</h3>
+    <ol>
+      <li><span>Opening spot price.</span><div class="calc">p = 30 / 1,000 <span class="eq">= 0.030</span> per million tokens</div></li>
+      <li><span>Quote side after the buy.</span><div class="calc">x = 30 + 10 = 40</div></li>
+      <li><span>Token side that keeps the product at 30,000.</span><div class="calc">y = 30,000 / 40 = 750</div></li>
+      <li><span>Tokens out.</span><div class="calc">Δy = 1,000 − 750 <span class="eq">= 250 million tokens</span></div></li>
+      <li><span>You paid 0.040 per million on average, more than the opening 0.030. The next buyer starts at 0.0533.</span><div class="calc">10 / 250 = 0.040   ·   40 / 750 = 0.0533</div></li>
+      <li><span>The curve ends when 800M are sold and y = 200.</span><div class="calc">x = 30,000 / 200 = 150 → real money raised = 150 − 30 <span class="eq">= 120</span></div></li>
+    </ol>
+  </div>
+  <figure class="figure" id="f2">
+    <figcaption><b>The x · y = 30,000 curve.</b> Every possible state of the launch is a point on this line. Paying in quote moves the point right and down.</figcaption>
+    <svg id="f2svg" viewBox="0 0 640 300" role="img" aria-label="Constant product hyperbola"></svg>
+    <div class="ctls">
+      <label class="ctl r"><span>Quote paid in Δx <b id="f2-qv"></b></span><input type="range" id="f2-q" min="0" max="120" step="1" value="10"></label>
+    </div>
+    <div class="tiles">
+      <div class="tile key"><span class="tl">Tokens out Δy</span><span class="tv" id="f2-o"></span></div>
+      <div class="tile"><span class="tl">Average price / 1M</span><span class="tv" id="f2-a"></span></div>
+      <div class="tile"><span class="tl">Spot price after / 1M</span><span class="tv vr" id="f2-p"></span></div>
+      <div class="tile"><span class="tl"><dfn data-t="impact">Price impact</dfn></span><span class="tv" id="f2-i"></span></div>
+    </div>
+  </figure>
+  <div class="note"><p class="box-title">Auditor's note · how big k gets</p><p>On-chain, amounts are in <dfn data-t="wei">wei</dfn>. One billion 18-decimal tokens is 10²⁷ wei, and 30 of an 18-decimal quote token is 3 × 10¹⁹ wei, so <i>k</i> is about 3 × 10⁴⁶. Each reserve fits in a <code>uint128</code>, which contracts often use to pack two reserves into one storage slot, but <i>k</i> does not. Check that <code>k</code> is a <code>uint256</code> and that <code>x * y</code> is computed in 256 bits, not as two <code>uint128</code> values multiplied together.</p></div>
+  <div class="prose">
+    <h3>Real money and virtual money</h3>
+    <p><i>x</i> is the 30 virtual quote plus the real money buyers have paid in. Only the real part is in the contract, so the contract has to track it separately and pay every sell out of it.</p>
+    <p>On a constant product curve the numbers work out exactly. If every holder sells back, <i>x</i> returns to 30 and the payouts add up to the real money taken in, so the contract can always pay every seller. This is called <dfn data-t="solvency">solvency</dfn>. It holds as long as fees are kept out of the reserve and every rounding goes the contract's way.</p>
+  </div>
+  <div class="formula">
+    <div class="fx"><i class="vk">R</i><sub>real</sub> = <i class="vr">x</i> − <i class="vr">x</i>₀</div>
+    <p class="fcap"><b>In words</b>The real money held is <i>x</i> minus the virtual starting quote <i>x</i>₀, which is 30 here.</p>
+  </div>
+  <div class="worked">
+    <h3>Worked example: everyone sells back after the 10 quote buy</h3>
+    <ol>
+      <li><span>State after the buy.</span><div class="calc">x = 40, y = 750 → R_real = 40 − 30 <span class="eq">= 10</span></div></li>
+      <li><span>Every holder sells all 250M back.</span><div class="calc">y = 1,000 → x = 30 → payouts 40 − 30 = 10 = R_real</div></li>
+      <li><span>The payouts equal the real reserve exactly. With a 1% fee, sellers get 9.90 and the 0.10 fee sits in a separate fee balance.</span><div class="calc">10 − 10 = 0 left, no shortfall</div></li>
+    </ol>
+  </div>
+  <div class="note"><p class="box-title">Auditor's note · never pay out the virtual amount</p><p>If a sell pays out based on <i>x</i> without subtracting the virtual 30, it pays money that was never there, and the last sellers find the contract empty. Check that no payout can be more than <i>x</i> − 30, especially right after launch, and that fees are kept in their own variable, not in the balance the curve prices from.</p></div>
+
+
+  <div class="quiz" data-quiz="mcq" id="q3" data-answer="a">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">Why do pump.fun-style curves start from virtual reserves instead of empty ones?</p>
+    <div class="opts"><button data-k="a">x · y = k needs nonzero reserves to set a price</button><button data-k="b">The virtual tokens are sold later to pay the fees</button><button data-k="c">They let the creator withdraw an initial reserve</button></div>
+    <div class="explain" hidden><p>With <i>x</i> = 0, <i>k</i> is 0 and the price <i>x</i>/<i>y</i> is 0, so the formula can't price anything. The virtual amounts give a real opening price and set how steep the curve is. They can't be withdrawn; only the real money on top of them can be paid out.</p><dl><dt>Why not b</dt><dd>Virtual tokens only exist in the formula. They are never sold, and fees are paid in quote.</dd><dt>Why not c</dt><dd>The virtual quote was never deposited, so there is nothing to withdraw. Only real money from buyers can be paid out.</dd></dl></div>
+  </div>
+  <div class="quiz" data-quiz="num" id="q4" data-ans="400" data-tol="0.5">
+    <div class="qh"><span class="qtag">Your turn · calculate it</span><span class="qstate"></span></div>
+    <p class="q">At launch (x = 30, y = 1,000M), how many million tokens does a buy with 20 quote receive?</p>
+    <div class="numrow"><input type="text" inputmode="decimal" id="q4-in" aria-label="Your answer"><span class="unit">million tokens</span><button class="btn" data-check>Check</button><button class="btn ghost" data-steps>Show the steps</button></div>
+    <p class="fb" aria-live="polite"></p>
+    <ol class="steps" hidden><li>New quote side: 30 + 20 = 50.</li><li>New token side: 30,000 / 50 = 600.</li><li>Tokens out: 1,000 − 600 = <b class="vk">400</b> million. Twice the money of the worked example bought 1.6 times the tokens.</li></ol>
+  </div>
+  <div class="quiz" data-quiz="mcq" id="q9" data-answer="a">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">After 250M tokens are sold, every holder sells them all back. With no fees, how much does the curve pay out in total?</p>
+    <div class="opts"><button data-k="a">10, the real quote buyers paid in</button><button data-k="b">40, the whole quote side of the curve</button><button data-k="c">30, the virtual amount it started with</button></div>
+    <div class="explain" hidden><p>Selling everything takes x from 40 back to 30, so the payouts add up to 40 − 30 = 10, exactly what buyers paid in. The 30 virtual quote was never in the contract.</p><dl><dt>Why not b</dt><dd>40 includes the 30 virtual quote, which was never in the contract. Selling everything only takes <i>x</i> back to 30.</dd><dt>Why not c</dt><dd>30 is the virtual amount. It is where <i>x</i> stops when everything is sold, not money that gets paid out.</dd></dl></div>
+  </div>
+  <div class="quiz" data-quiz="bug" id="q5" data-answer="b">
+    <div class="qh"><span class="qtag">Find the bug</span><span class="qstate"></span></div>
+    <p class="q">Almost every buy on this curve reverts. Which line is the root cause?</p>
+<pre class="sol">function buy(uint256 quoteIn, uint256 minOut) external {
+    uint256 newX = vQuote + quoteIn;
+    uint256 newY = k / newX;
+    uint256 out  = vToken - newY;
+    require(out &gt;= minOut &amp;&amp; out &gt; 0, "out");
+    require(newX * newY &gt;= k, "k");
+    vQuote = newX;
+    vToken = newY;
+    quote.safeTransferFrom(msg.sender, address(this), quoteIn);
+    token.safeTransfer(msg.sender, out);
+}</pre>
+    <div class="opts"><button data-k="a"><span><code>minOut</code> is checked before the transfers happen</span></button><button data-k="b"><span><code>k / newX</code> rounds down</span></button><button data-k="c"><span>The reserves are written before the quote arrives</span></button></div>
+    <div class="explain" hidden><dl><dt>Impact</dt><dd>Integer division rounds <code>newY</code> down unless <code>newX</code> divides <code>k</code> exactly, which with amounts in wei almost never happens. So <code>newX * newY</code> is almost always a little below <code>k</code>, the <code>k</code> check reverts, and almost every buy fails. Nobody can buy and the curve never graduates. No money is lost, but the contract's main function stops working: Medium severity.</dd><dt>Fix</dt><dd>Round <code>newY</code> up: <code>newY = (k + newX - 1) / newX;</code>. Then <code>newX * newY</code> is never below <code>k</code> and the check passes. Removing the check would also stop the reverts, but then every buy gives out up to 1 wei too many tokens.</dd><dt>Why not a</dt><dd>Checking minOut before the transfers is the normal order (checks-effects-interactions).</dd><dt>Why not c</dt><dd>Updating <code>vQuote</code> and <code>vToken</code> before the transfers is also the normal order. If <code>safeTransferFrom</code> fails, the whole call reverts and the state change is undone.</dd></dl></div>
+  </div>
+
+  <div class="sec">
+    <div class="sech"><h4>Security check · curve math</h4><span class="cnt"></span></div>
+    <ul>
+      <li><label><input type="checkbox" id="c-round"><span>Does every division round in the curve's favor (<dfn data-t="rounding">rounding direction</dfn>)?</span></label>
+        <p class="one">Tokens out round down, required quote in rounds up, sell payouts round down, fees round up.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>Every division that rounds toward the trader gives away up to 1 wei and lets <code>x · y</code> fall below <code>k</code>. One wei is rarely worth the gas, but with low-decimal tokens, or when the rounded value is multiplied by a price or share afterwards, it can add up to real money. If the code also checks <code>x * y &gt;= k</code> after rounding the wrong way, the check fails and the trade reverts instead.</dd><dt>Check</dt><dd>Go through every division and ask who gains if it rounds down. Do this separately for buys with exact input, buys with exact output, sells, fees and graduation.</dd><dt>Fix</dt><dd>Use explicit <code>mulDivUp</code> / <code>mulDivDown</code> and <dfn data-t="ceil">ceiling division</dfn> where the protocol needs the larger number.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-zero"><span>Can the curve be pushed to a point where no buy can finish it?</span></label>
+        <p class="one">If the last few wei of quote buy zero tokens, or are below a minimum buy, every buy reverts and the curve never graduates.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>An attacker buys until the curve needs only a few wei of quote to finish. Any later buy gets cut down to that amount, and two things can make it revert. If one wei of the token is worth more than one wei of quote (a token with few decimals, or a very expensive one), the output rounds to 0 and a zero-output check fails. If the contract has a minimum buy size, the cut-down amount is below it. With this lesson's numbers neither happens: near the end, 1 wei of quote still buys about 1.3 million wei of tokens.</dd><dt>Check</dt><dd>How does the code cut down the last buy? Does it compute the output with the formula, which can round to 0, or hand over all remaining curve tokens? Does a minimum buy size apply to the cut-down amount? Can sells unfreeze the curve, and are sells allowed at that point?</dd><dt>Fix</dt><dd>On the <dfn data-t="terminal">last buy</dfn>, give the buyer all remaining curve tokens instead of using the formula, or graduate once the quote still needed is below a small dust amount.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-drift"><span>Does graduation expect exact amounts that rounding can change?</span></label>
+        <p class="one">After many trades the real balances are a few wei off from what the launch math predicted, and an <code>==</code> check reverts.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>Amounts worked out in advance, such as the tokens left for the pool or the quote raised at the end, assume exact math. Every rounded trade moves the real amounts by a wei.</dd><dt>Check</dt><dd>Search for <code>==</code> on balances and amounts in graduation and migration code.</dd><dt>Fix</dt><dd>Derive pool amounts from actual balances at migration time, or compare with a tolerance and sweep the dust.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-cap"><span>Can the curve sell more tokens than it was given?</span></label>
+        <p class="one">Curve sales plus pool tokens plus any creator share must never exceed max supply.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>If a buy can go past the 800M meant for the curve, the extra comes out of the tokens reserved for the pool, or gets minted on top of the supply.</dd><dt>Check</dt><dd>Every buy is cut off at the cap. The pool's tokens are set aside once, as a constant. If there is a mint function, it checks the cap itself.</dd><dt>Fix</dt><dd>Cut buys off at the remaining curve tokens and check <code>totalSupply() &lt;= MAX_SUPPLY</code> wherever tokens are minted.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-solv"><span>If every holder sells, can the contract pay them all?</span></label>
+        <p class="one">All possible sell payouts added up must never be more than the real reserve.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>Fees, rounding errors or virtual amounts mixed into the reserve can leave the last sellers unpaid.</dd><dt>Check</dt><dd>Tracked reserve equals x − x₀ after every trade. Fees are stored separately. Sell payouts round down.</dd><dt>Fix</dt><dd>Write a fuzz test: random buys, then sell everything back in random chunks. Every sell must succeed and the reserve must never go below zero.</dd></dl></details></li>
+    </ul>
+  </div>
+</section>
+
+<!-- CH3 -->
+<section class="paper" id="ch3">
+  <header class="chap">
+    <div class="mark vr">03<small>Trading, sandwiches</small></div>
+    <p class="eyebrow">Chapter 3 of 4</p>
+    <h2>Selling, fees and sandwich attacks</h2>
+  </header>
+  <div class="prose">
+    <p>Selling is a buy run backwards. You give tokens back, <i>y</i> goes up, so <i>x</i> has to go down to keep <i>x</i> · <i>y</i> at <i>k</i>, and you are paid the difference. Without fees, if you buy with 10 quote and sell the tokens straight back, you get exactly 10 back.</p>
+    <p>Launchpads charge a fee <i>f</i> on each trade, usually around 1%. In this lesson a buyer pays the fee on top, and a seller has it taken off the payout. Many contracts instead take the buyer's fee out of the amount sent, like the buy function in the quiz below; the cost is about the same. So buying and selling straight back costs you about 2%. That gap between the price you buy at and the price you can sell at is the <dfn data-t="spread">spread</dfn>.</p>
+    <p>Every trade moves the price, so the order of trades matters. A bot that sees your buy waiting in the mempool can buy just before you, let your buy push the price up, and sell right after. This is a <dfn data-t="sandwich">sandwich attack</dfn>, a kind of <dfn data-t="frontrun">front-running</dfn>. You protect yourself with <dfn data-t="minout">minOut</dfn>, the fewest tokens you will accept. If the price has moved too far by the time your trade runs, it reverts. How far you let it move is your <dfn data-t="slippage">slippage</dfn> tolerance.</p>
+  </div>
+  <a class="xref" href="uniswap-math.html#what-a-swap-computes"><span class="arr">→</span><b>Price impact and slippage on the Uniswap lesson</b><span>The V1 chapter works through a swap step by step and explains how price impact differs from slippage.</span></a>
+  <div class="formula">
+    <div class="fx"><i class="vk">out</i> = <i class="vr">x</i> − <span class="frac"><span><i>k</i></span><span><i class="vt">y</i> + <i class="vt">Δy</i></span></span></div>
+    <p class="fcap"><b>In words</b>Add the tokens sold to <i>y</i>, divide <i>k</i> by that to get the new <i>x</i>, and pay out the difference.</p>
+    <div class="fx"><i class="vk">Profit</i> = <i>out</i> · (1 − <i>f</i>) − <i class="vr">a</i> · (1 + <i>f</i>)</div>
+    <p class="fcap"><b>In words</b>The attacker pays <i>a</i> plus the fee to buy first, then gets the sell payout minus the fee. The attack is worth it when your buy moves the price by more than the two fees.</p>
+  </div>
+  <div class="syms">
+    <h4>Symbols in play</h4>
+    <dl>
+      <dt class="vt">Δy</dt><dd>Tokens sold back.</dd>
+      <dt class="vk">out</dt><dd>Quote paid out for those tokens, before the fee.</dd>
+      <dt>f</dt><dd>Fee as a fraction. 1% is 0.01.</dd>
+      <dt class="vr">a</dt><dd>Quote the attacker spends on the front-run.</dd>
+    </dl>
+  </div>
+  <div class="plain"><b>In short</b>A bot buys right before you, your buy raises the price, and the bot sells right after at that higher price. Its profit comes out of the tokens you would have got. A tight minOut makes your trade revert instead.</div>
+  <div class="worked">
+    <h3>Worked example: 1% fee, launch state x = 30, y = 1,000M</h3>
+    <ol>
+      <li><span>You buy with 10 quote and get 250M tokens, as in chapter 2.</span><div class="calc">you pay 10 × 1.01 <span class="eq">= 10.10</span></div></li>
+      <li><span>You sell the 250M straight back. The curve returns to x = 30.</span><div class="calc">out = 40 − 30,000 / 1,000 = 10 → you receive 10 × 0.99 = 9.90</div></li>
+      <li><span>You lost the fee twice, once on each trade.</span><div class="calc">10.10 − 9.90 <span class="eq">= 0.20</span></div></li>
+      <li><span>Start over. This time a bot buys first with 10 quote and gets those 250M.</span><div class="calc">x = 40, y = 750 · attacker pays 10.10</div></li>
+      <li><span>Your 10 quote now buys at a higher price.</span><div class="calc">y = 30,000 / 50 = 600 → you get 750 − 600 <span class="eq">= 150M</span> instead of 250M</div></li>
+      <li><span>The bot sells its 250M back.</span><div class="calc">y = 850 → x = 30,000 / 850 = 35.29 → out = 50 − 35.29 = 14.71</div></li>
+      <li><span>The bot's profit after both fees. With minOut set close to 250M, your buy would have reverted and the bot would have lost its fees instead.</span><div class="calc">14.71 × 0.99 − 10.10 <span class="eq">= 4.46</span></div></li>
+    </ol>
+  </div>
+  <figure class="figure" id="f3">
+    <figcaption><b>A sandwich on the curve.</b> Price against tokens sold. Your buy is always 10 quote, so both orange areas are the same size. The sandwiched one sits higher on the curve, so it is narrower, which means fewer tokens.</figcaption>
+    <svg id="f3svg" viewBox="0 0 640 300" role="img" aria-label="Sandwich attack on a constant product curve"></svg>
+    <div class="legendrow"><span><i style="background:var(--muted);opacity:.5"></i>attacker's front-run</span><span><i style="background:var(--key);opacity:.4"></i>your buy, sandwiched</span><span><i style="border:1.5px dashed var(--key)"></i>your buy, no attack</span></div>
+    <div class="ctls">
+      <label class="ctl"><span>Attacker front-run <b id="f3-av"></b></span><input type="range" id="f3-a" min="0" max="40" step="1" value="10"></label>
+      <label class="ctl r"><span>Fee per trade <b id="f3-fv"></b></span><input type="range" id="f3-f" min="0" max="10" step="0.5" value="1"></label>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="tl">You get, no attack</span><span class="tv" id="f3-c0"></span></div>
+      <div class="tile"><span class="tl">You get, sandwiched</span><span class="tv" id="f3-c1"></span></div>
+      <div class="tile"><span class="tl">Tokens you lose</span><span class="tv neg" id="f3-x"></span></div>
+      <div class="tile key"><span class="tl">Attacker profit</span><span class="tv" id="f3-p"></span></div>
+    </div>
+  </figure>
+
+  <div class="quiz" data-quiz="mcq" id="q6" data-answer="c">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">With no other traders, you buy tokens and sell the same amount right back. Why do you end with less quote than you started with?</p>
+    <div class="opts"><button data-k="a">The curve price moved up during your buy</button><button data-k="b">Selling back shrinks the invariant k for good</button><button data-k="c">A fee is charged on the buy and on the sell</button></div>
+    <div class="explain" hidden><p>Selling the same tokens back puts the curve exactly where it started, so the curve itself returns all of your quote. What you lose is the fee on each trade: in the example you paid 10.10 and got 9.90 back. <i>k</i> does not change.</p><dl><dt>Why not a</dt><dd>The price did go up during your buy, but your sell moved it back down by the same amount, so the curve returns all of your quote.</dd><dt>Why not b</dt><dd>A round trip puts <i>x</i> and <i>y</i> back where they started, so <i>k</i> is unchanged.</dd></dl></div>
+  </div>
+  <div class="quiz" data-quiz="num" id="q7" data-ans="100" data-tol="0.5">
+    <div class="qh"><span class="qtag">Your turn · calculate it</span><span class="qstate"></span></div>
+    <p class="q">From launch, an attacker front-runs with 20 quote. How many million tokens does your 10 quote buy now?</p>
+    <div class="numrow"><input type="text" inputmode="decimal" id="q7-in" aria-label="Your answer"><span class="unit">million tokens</span><button class="btn" data-check>Check</button><button class="btn ghost" data-steps>Show the steps</button></div>
+    <p class="fb" aria-live="polite"></p>
+    <ol class="steps" hidden><li>After the attacker: x = 50, y = 30,000 / 50 = 600.</li><li>After your buy: x = 60, y = 30,000 / 60 = 500.</li><li>You get 600 − 500 = <b class="vk">100</b> million, down from 250 million.</li></ol>
+  </div>
+  <div class="quiz" data-quiz="bug" id="q8" data-answer="a">
+    <div class="qh"><span class="qtag">Find the bug</span><span class="qstate"></span></div>
+    <p class="q">Which of these is a bug in this buy function?</p>
+<pre class="sol">function buy(uint256 minOut, uint256 deadline) external payable {
+    require(block.timestamp &lt;= deadline, "expired");
+    uint256 fee = (msg.value * feeBps + 9_999) / 10_000; // round up
+    uint256 out = quoteBuy(msg.value - fee);
+    require(out &gt; 0, "zero out");
+    vQuote += msg.value - fee;
+    vToken -= out;
+    token.safeTransfer(msg.sender, out);
+}</pre>
+    <div class="opts"><button data-k="a"><span><code>minOut</code> is accepted but never compared to <code>out</code></span></button><button data-k="b"><span>The fee is taken out before the buy is priced</span></button><button data-k="c"><span>The deadline check uses <code>&lt;=</code> instead of <code>&lt;</code></span></button></div>
+    <div class="explain" hidden><dl><dt>Attack</dt><dd><code>minOut</code> is never checked, so a bot can sandwich this buy and the buyer gets far fewer tokens than the app showed. The parameter looks like protection but does nothing.</dd><dt>Fix</dt><dd>Add <code>require(out &gt;= minOut, "slippage");</code> before the transfer.</dd><dt>Why not b</dt><dd>Taking the fee out first and pricing only the rest is correct. The fee never enters the curve, so it is not counted in the reserve, and it rounds up in the protocol's favor.</dd><dt>Why not c</dt><dd><code>&lt;=</code> lets the trade run up to and including the deadline second, which is the usual convention (Uniswap's routers do the same). With <code>&lt;</code> the trade would only expire one second earlier. Neither choice is a bug.</dd></dl></div>
+  </div>
+
+  <div class="sec">
+    <div class="sech"><h4>Security check · trading</h4><span class="cnt"></span></div>
+    <ul>
+      <li><label><input type="checkbox" id="c-slip"><span>Do buy and sell both take a minOut and a <dfn data-t="deadline">deadline</dfn>, and enforce them?</span></label>
+        <p class="one">Without both, any pending trade can be sandwiched or executed hours later at a worse price.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>minOut limits how far the price can move against the trader. The deadline limits how long a signed transaction can sit in the mempool before it runs.</dd><dt>Check</dt><dd>Every entry point (buy, sell, buy with exact output, router paths) takes both and actually compares them. The frontend doesn't fill in <code>0</code> and <code>type(uint256).max</code> by default.</dd><dt>Fix</dt><dd><code>require(out &gt;= minOut)</code> and <code>require(block.timestamp &lt;= deadline)</code> on every path.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-sand"><span>Is a sandwich profitable at the current fee for typical trade sizes?</span></label>
+        <p class="one">A sandwich pays when the victim's price move exceeds roughly twice the fee.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>The attacker earns the price move the victim causes, minus a fee on each leg. Early on the curve, small trades move the price a lot.</dd><dt>Check</dt><dd>Compute the price impact of typical buys near launch. Confirm minOut is mandatory and cannot be bypassed through a second entry point.</dd><dt>Fix</dt><dd>Make slippage limits mandatory. A higher fee in the first blocks after launch also helps.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-snipe"><span>Can bots buy the cheapest tokens right at launch?</span></label>
+        <p class="one">The first tokens on a curve are the cheapest, and bots try to buy them in the launch block. This is <dfn data-t="sniping">sniping</dfn>.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>If creating the token and the creator's first buy are separate transactions, a bot watching the mempool can buy in between.</dd><dt>Check</dt><dd>Can the creator buy in the same transaction that creates the token? Is there a per-wallet or per-transaction cap in the first blocks? Can the creator bundle a large buy that nobody sees until it lands?</dd><dt>Fix</dt><dd>Let the creator buy in the create transaction, up to a public cap. Limit buy size in the first blocks, or start with a high fee that drops over the first blocks.</dd></dl></details></li>
+    </ul>
+  </div>
+</section>
+
+<!-- CH4 -->
+<section class="paper" id="ch4">
+  <header class="chap">
+    <div class="mark vk">04<small>Graduation</small></div>
+    <p class="eyebrow">Chapter 4 of 4</p>
+    <h2>Graduation: moving from the curve to a real pool</h2>
+  </header>
+  <div class="prose">
+    <p>Once the real reserve reaches a target, the contract stops trading on the curve. This is graduation, also called <dfn data-t="migration">migration</dfn>. The contract creates a <dfn data-t="pool">pool</dfn> on an AMM, deposits the quote it collected together with a matching amount of tokens, and burns the LP tokens so nobody can withdraw the liquidity.</p>
+    <p>The pool has to open at the price where the curve stopped. If it opens lower, every holder loses value the moment the pool exists, and the first pool buyers get tokens cheaper than the last curve buyers paid. If it opens higher, the last curve buyers can sell into the pool right away at a profit, taken out of the liquidity the curve just deposited.</p>
+    <p>The last buy on the curve usually asks for more tokens than are left. The contract fills what it can and sends the rest of the money back as a <dfn data-t="refund">refund</dfn>. Bugs here usually come from a minOut check that is not scaled to the partial fill, or from a refund sent before the contract's state is updated.</p>
+  </div>
+  <a class="xref" href="uniswap-math.html#small-details-that-matter"><span class="arr">→</span><b>How a V2 pair mints its first liquidity</b><span>The Uniswap V2 chapter covers the first LP mint into a new pair and the 1,000 units it locks forever as MINIMUM_LIQUIDITY.</span></a>
+  <div class="formula">
+    <div class="fx"><i class="vt">tokens</i><sub>pool</sub> = <span class="frac"><span><i class="vr">R</i><sub>real</sub></span><span><i class="vr">p</i><sub>end</sub></span></span></div>
+    <p class="fcap"><b>In words</b>Deposit as many tokens as it takes for the pool's price (quote divided by tokens) to equal the curve's last price.</p>
+    <div class="fx"><i class="vk">minOut′</i> = minOut · <span class="frac"><span>used</span><span>sent</span></span></div>
+    <p class="fcap"><b>In words</b>If only part of a buy is filled, scale minOut down by the same fraction before checking it.</p>
+  </div>
+  <div class="syms">
+    <h4>Symbols in play</h4>
+    <dl>
+      <dt class="vr">R<sub>real</sub></dt><dd>Real quote raised. 120 at graduation in our example.</dd>
+      <dt class="vr">p<sub>end</sub></dt><dd>Spot price at the end: 150 / 200M = 0.75 per million tokens.</dd>
+      <dt>sent, used</dt><dd>Quote the buyer sent, and the part the curve could take.</dd>
+      <dt>minOut</dt><dd>Minimum tokens the buyer set for the full amount sent.</dd>
+      <dt class="vk">minOut′</dt><dd>That minimum scaled to the filled part.</dd>
+    </dl>
+  </div>
+  <div class="plain"><b>In short</b>The pool must open at the curve's last price. The last buyer gets the tokens that are left, a minOut scaled to that part, and the unused quote back.</div>
+  <div class="worked">
+    <h3>Worked example: graduation and the last buy</h3>
+    <ol>
+      <li><span><dfn data-t="mcap">Market cap</dfn> at the end, with 1,000M total tokens, before the 40M left over are burned.</span><div class="calc">0.75 × 1,000 = 750 quote</div></li>
+      <li><span>Tokens needed to pair with the 120 quote raised, at that price.</span><div class="calc">120 / 0.75 <span class="eq">= 160 million tokens</span></div></li>
+      <li><span>Where all 1,000M tokens end up: 800M sold, 160M in the pool, and the 40M left over are burned.</span><div class="calc">800 + 160 + 40 = 1,000 million</div></li>
+      <li><span>Now the last buy. 90 quote has been raised so far (x = 120, y = 250). Alice sends 50. Her wallet worked out her tokens as if the curve kept going and set minOut 1% below that.</span><div class="calc">(250 − 30,000/170) × 0.99 = 73.53 × 0.99 → minOut = 72.79M</div></li>
+      <li><span>Only 30 more quote fits. She gets every token down to y = 200, and 20 quote back.</span><div class="calc">out = 250 − 200 = 50M · refund = 20</div></li>
+      <li><span>Checking 50M against her minOut fails, as it always will when minOut is more than the tokens left. The scaled check passes.</span><div class="calc">50 ≥ 72.79 ✗  ·  minOut′ = 72.79 × 30/50 <span class="eq">= 43.68</span> → 50 ≥ 43.68 ✓</div></li>
+    </ol>
+  </div>
+  <figure class="figure" id="f5">
+    <figcaption><b>The last buy.</b> Tokens sold against quote raised. The curve ends at 120. Move the buy across that line and compare the two slippage checks.</figcaption>
+    <svg id="f5svg" viewBox="0 0 640 300" role="img" aria-label="Last buy across the graduation line"></svg>
+    <div class="legendrow"><span><i style="background:var(--key)"></i>filled part</span><span><i style="border:1.5px dashed var(--muted)"></i>refunded part, where the wallet assumed the curve kept going</span><span><i style="border:1.5px dashed var(--ok)"></i>graduation</span></div>
+    <div class="ctls">
+      <label class="ctl r"><span>Already raised <b id="f5-rv"></b></span><input type="range" id="f5-r" min="0" max="119" step="1" value="90"></label>
+      <label class="ctl k"><span>Quote sent <b id="f5-av"></b></span><input type="range" id="f5-a" min="1" max="60" step="1" value="50"></label>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="tl">Used / refunded</span><span class="tv" id="f5-u"></span></div>
+      <div class="tile key"><span class="tl">Tokens out</span><span class="tv" id="f5-o"></span></div>
+      <div class="tile"><span class="tl">Naive: out ≥ minOut</span><span class="tv" id="f5-n"></span></div>
+      <div class="tile"><span class="tl">Scaled: out ≥ minOut′</span><span class="tv" id="f5-s"></span></div>
+    </div>
+  </figure>
+  <div class="note"><p class="box-title">Auditor's note · units at the handover</p><p>The curve may hold native ETH or SOL, but the pool needs the wrapped token. Check that the contract wraps before it deposits, that the pool price accounts for both tokens' decimals (a 6-decimal quote against an 18-decimal token is off by 10¹² if it doesn't), and that the graduation check uses <code>&gt;=</code> so a rounded total can't skip past the target.</p></div>
+
+  <div class="prose">
+    <h3>Donations: money that did not come from a buy</h3>
+    <p>Anyone can transfer tokens straight to the curve contract, which is called a <dfn data-t="donation">donation</dfn>. If the code reads <code>balanceOf</code> to get its reserve, it counts the donation as if buyers had paid it. The price goes up without a trade, and a graduation check that reads the balance triggers before buyers have paid the full target. The same works on the pool itself before graduation; the checklist below covers both.</p>
+  </div>
+  <div class="plain"><b>In short</b>Count the money that came in through buys and went out through sells, not whatever happens to be in the contract. Anyone can add to the balance.</div>
+  <div class="worked">
+    <h3>Worked example: a donation of 10 after the 10 quote buy</h3>
+    <ol>
+      <li><span>The curve is at x = 40 and holds 10 real quote. Someone transfers 10 more straight to it.</span><div class="calc">tracked R_real = 10 · balance = 20</div></li>
+      <li><span>Code that prices from its balance now uses x = 50 instead of 40.</span><div class="calc">p = 50 / 750 = 0.0667 vs 40 / 750 = 0.0533 <span class="eq">→ +25%</span></div></li>
+      <li><span>A graduation check that reads the balance wants 120, and 10 of what it counts was never paid by a buyer.</span><div class="calc">graduates after 110 of real buys instead of 120</div></li>
+    </ol>
+  </div>
+
+  <div class="quiz" data-quiz="mcq" id="q12" data-answer="b">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">The curve needs 12 more quote to graduate. Alice sends 30 with a minOut sized for the full 30. What should the contract do?</p>
+    <div class="opts"><button data-k="a">Revert, as the buy is larger than what is left</button><button data-k="b">Use 12, refund 18, and scale her minOut by 12/30</button><button data-k="c">Use all 30 and sell past the curve's token cap</button></div>
+    <div class="explain" hidden><p>Fill the 12 that fit and refund 18. Her minOut has to be scaled to the part that was filled; otherwise the contract compares a partial fill against a full-size minimum and reverts.</p><dl><dt>Why not a</dt><dd>If every buy larger than what is left reverts, a buyer has to send exactly the amount needed, which is hard to hit while others trade. The curve can sit just short of graduation.</dd><dt>Why not c</dt><dd>The curve only has 800M tokens to sell. Selling past that takes tokens meant for the pool or mints new ones, and the pool then opens at the wrong price.</dd></dl></div>
+  </div>
+  <div class="quiz" data-quiz="num" id="q13" data-ans="36" data-tol="0.05">
+    <div class="qh"><span class="qtag">Your turn · calculate it</span><span class="qstate"></span></div>
+    <p class="q">Bob sends 50 quote with minOut = 60M tokens. Only 30 quote fits before graduation. What is his scaled minOut′, in millions?</p>
+    <div class="numrow"><input type="text" inputmode="decimal" id="q13-in" aria-label="Your answer"><span class="unit">million tokens</span><button class="btn" data-check>Check</button><button class="btn ghost" data-steps>Show the steps</button></div>
+    <p class="fb" aria-live="polite"></p>
+    <ol class="steps" hidden><li>Share filled: used / sent = 30 / 50 = 0.6.</li><li>minOut′ = 60 × 0.6 = <b class="vk">36</b> million.</li><li>He receives the 50M left on the curve in the example, so the scaled check passes.</li></ol>
+  </div>
+  <div class="quiz" data-quiz="bug" id="q11" data-answer="a">
+    <div class="qh"><span class="qtag">Find the bug</span><span class="qstate"></span></div>
+    <p class="q">Anyone can change what this sell pays out. Which line lets them?</p>
+<pre class="sol">function sell(uint256 amount, uint256 minOut) external {
+    uint256 x = VIRTUAL_QUOTE + quote.balanceOf(address(this));
+    uint256 newY = vToken + amount;
+    uint256 out = x - Math.ceilDiv(x * vToken, newY);
+    require(out &gt;= minOut, "slippage");
+    vToken = newY;
+    token.safeTransferFrom(msg.sender, address(this), amount);
+    quote.safeTransfer(msg.sender, out);
+}</pre>
+    <div class="opts"><button data-k="a"><span><code>x</code> is built from the live quote balance</span></button><button data-k="b"><span>Tokens are taken back before the payout is sent</span></button><button data-k="c"><span><code>ceilDiv</code> rounds the new quote side up</span></button></div>
+    <div class="explain" hidden><dl><dt>Attack</dt><dd>A donation raises <code>x</code>, so the price and every sell payout go up without a trade. Anyone who wants a higher price, for example to move the price the pool opens at, can get it with a donation. Fees held in the same balance are counted too, so they get paid out to sellers and the fee recipient later finds less than it is owed.</dd><dt>Fix</dt><dd>Track the real reserve in storage, change it only in buy and sell, and keep fees in a separate variable. Sweep any surplus balance.</dd><dt>Why not b</dt><dd>Taking the seller's tokens before sending the payout is the safe order. If the token transfer fails, nothing is paid.</dd><dt>Why not c</dt><dd>Rounding the new quote side up is correct: it rounds the payout down, in the curve's favor.</dd></dl></div>
+  </div>
+  <div class="quiz" data-quiz="bug" id="q14" data-answer="a">
+    <div class="qh"><span class="qtag">Find the bug</span><span class="qstate"></span></div>
+    <p class="q">This runs at the end of the last buy. The order of two steps lets the buyer reenter. Which?</p>
+<pre class="sol">function _finishCurve(uint256 used, uint256 sent) internal {
+    uint256 refund = sent - used;
+    if (refund &gt; 0) {
+        (bool ok, ) = msg.sender.call{value: refund}("");
+        require(ok, "refund failed");
+    }
+    graduated = true;
+    _migrate();
+}</pre>
+    <div class="opts"><button data-k="a"><span><code>graduated</code> is set after the refund call</span></button><button data-k="b"><span>The refund uses <code>.call</code> instead of <code>transfer</code></span></button><button data-k="c"><span>A failed refund reverts the whole buy</span></button></div>
+    <div class="explain" hidden><dl><dt>Attack</dt><dd>The refund call runs the buyer's code while <code>graduated</code> is still false. From <code>receive()</code>, the buyer can call <code>buy</code> or <code>sell</code> again on a curve that is already full, or get <code>_migrate</code> to run twice. This is <dfn data-t="reentrancy">reentrancy</dfn>.</dd><dt>Fix</dt><dd>Follow <dfn data-t="cei">checks-effects-interactions</dfn>: set <code>graduated = true</code> and finish state changes first, add a <code>nonReentrant</code> guard, and refund last (or credit it for a later withdrawal).</dd><dt>Why not b</dt><dd><code>.call</code> is the right choice. <code>transfer</code> forwards only 2,300 gas, so many smart contract wallets could not receive the refund.</dd><dt>Why not c</dt><dd>Reverting when the refund fails only affects a buyer whose own wallet rejects ETH, and it does not let anyone reenter. Crediting the refund for a later withdrawal avoids even that.</dd></dl></div>
+  </div>
+  <div class="quiz" data-quiz="bug" id="q15" data-answer="c">
+    <div class="qh"><span class="qtag">Find the bug</span><span class="qstate"></span></div>
+    <p class="q">This migration can be blocked by anyone, forever. Why?</p>
+<pre class="sol">function _migrate() internal {
+    address pair = factory.createPair(address(token), address(weth));
+    weth.deposit{value: realQuote}();
+    weth.transfer(pair, realQuote);
+    token.transfer(pair, TOKENS_FOR_POOL);
+    IUniswapV2Pair(pair).mint(DEAD);
+}</pre>
+    <div class="opts"><button data-k="a"><span>LP tokens are minted to a dead address</span></button><button data-k="b"><span>WETH is sent to the pair before the tokens</span></button><button data-k="c"><span><code>createPair</code> reverts if the pair exists</span></button></div>
+    <div class="explain" hidden><dl><dt>Attack</dt><dd>The token address is known at launch. An attacker calls <code>factory.createPair</code> first. Now <code>_migrate</code> reverts on every attempt and the curve can never graduate. With a pre-created pair the attacker can also donate WETH into it, so the pool opens at the wrong price.</dd><dt>Fix</dt><dd>Use <code>getPair</code> and create only if missing. If it exists, handle balances already in the pair (<code>skim</code> or <code>sync</code>, then size deposits from actual reserves). Or create the pair at launch from inside the factory. If the launchpad graduates into Uniswap V4 instead, it can attach its own hook whose <code>beforeInitialize</code> reverts unless the caller is the launchpad. The hook address is part of the pool's ID, so nobody else can create that pool first.</dd><dt>Why not a</dt><dd>Sending the LP tokens to a dead address locks the liquidity for good. That is intended.</dd><dt>Why not b</dt><dd>A V2 pair only reads its balances when <code>mint</code> is called, after both transfers, so the order of the two transfers does not matter.</dd></dl></div>
+  </div>
+
+  <div class="sec">
+    <div class="sech"><h4>Security check · graduation</h4><span class="cnt"></span></div>
+    <ul>
+      <li><label><input type="checkbox" id="c-tslip"><span>Is minOut scaled on the last, partly filled buy?</span></label>
+        <p class="one">Without scaling, a large last buy usually reverts. If the code skips the check instead, the buyer has no protection.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>The buyer sets minOut for the full amount, but the curve only uses part of it. Comparing the full minOut to a partial fill reverts even when the price was fine. Code that skips the check on this path leaves the buyer open to a sandwich.</dd><dt>Check</dt><dd>Find the code that cuts down the last buy. Is minOut checked there, and against what?</dd><dt>Fix</dt><dd><code>minOut * used / sent</code> (rounded up), then <code>require(out &gt;= scaledMin)</code>.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-pre"><span>Can someone create the pool before graduation, to block it or pick its price?</span></label>
+        <p class="one">A V2 <code>createPair</code> call fails if the pair already exists, and a concentrated-liquidity pool that someone else initialized starts at the price they picked.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>Anyone can work out the pool's address or ID in advance. For V2-style pools, creating the pair first makes graduation's <code>createPair</code> call revert. For V3 or V4 pools, initializing the pool at an extreme price means the curve's money is deposited at that price, or the deposit fails. The attacker can also add a tiny bit of liquidity so the pool already has a price and reserves that graduation has to deal with.</dd><dt>Check</dt><dd>Does graduation always call create, or does it first look for an existing pool? Does it read the price and reserves already there? What happens to the deposit if the starting price is far from the curve's final price?</dd><dt>Fix</dt><dd>Handle a pool that already exists: read its state and trade the price back if needed. For V4, use a <code>beforeInitialize</code> hook that only lets the launchpad initialize the pool. Or create the pool in the same transaction as the launch.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-don"><span>Can a donation change the price or the payouts?</span></label>
+        <p class="one">Any math that reads <code>balanceOf</code> or <code>address(this).balance</code> counts money anyone can send.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>A donation raises <i>x</i>: the price goes up, sells pay more, and a graduation check that reads the balance triggers early, so the pool opens at the wrong price.</dd><dt>Check</dt><dd>Is the reserve a stored variable? Does graduation read balances or stored values? Does a <code>receive()</code> function accept plain ETH?</dd><dt>Fix</dt><dd>Track reserves in storage; ignore or sweep surplus balances.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-pdon"><span>Can someone send tokens to the pool before graduation and change its price?</span></label>
+        <p class="one">Tokens already sitting in the pair are counted when liquidity is minted.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>A V2 pair mints LP tokens based on its balance minus its stored reserves, so tokens sent in earlier count as part of the first deposit. Donated WETH raises the opening price, and the attacker sells curve tokens they bought cheap into the pool at that price.</dd><dt>Check</dt><dd>Does migration account for existing balances in the pair? Can curve tokens be transferred to the pair before graduation?</dd><dt>Fix</dt><dd>Call <code>sync</code> or <code>skim</code> first and size deposits from reserves; block transfers of the launch token to the pair until graduation.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-re"><span>Can a refund or callback during graduation be used to reenter?</span></label>
+        <p class="one">An external call before state is final lets the receiver trade again or run migration twice.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>Native ETH refunds, token hooks (ERC-777, ERC-1363) and launch callbacks all run code at the receiving address.</dd><dt>Check</dt><dd>Where is the first external call when the last buy runs? Is <code>graduated</code> set before it? Is there a reentrancy guard on buy, sell and migrate?</dd><dt>Fix</dt><dd>Checks-effects-interactions plus <code>nonReentrant</code>; send the refund last.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-gas"><span>Is the refund sent with <code>.call</code>, not <code>transfer</code> or <code>send</code>?</span></label>
+        <p class="one"><code>transfer</code> only forwards 2,300 gas. A smart wallet whose <code>receive</code> function needs more runs out of gas, and the last buy reverts.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>Smart contract wallets, multisigs and proxies often need more than 2,300 gas in <code>receive</code> or <code>fallback</code>. If they do, every last buy they send fails.</dd><dt>Check</dt><dd>Search for <code>.transfer(</code> and <code>.send(</code> on native refunds.</dd><dt>Fix</dt><dd><code>(bool ok, ) = to.call{value: amount}(""); require(ok);</code> behind a reentrancy guard, or credit the refund for a separate withdraw.</dd></dl></details></li>
+      <li><label><input type="checkbox" id="c-v4mint"><span>When graduation adds liquidity to a Uniswap V4 pool, can the PoolManager reject it?</span></label>
+        <p class="one">If it does, every retry fails the same way and the raised money is stuck.</p>
+        <details><summary>Details</summary><dl><dt>What</dt><dd>The launchpad's own checks pass, but <code>modifyLiquidity</code> reverts on limits that only V4 core checks. The total liquidity of all positions that use a tick as a boundary can be at most <code>maxLiquidityPerTick</code>, and <code>uint128</code> amounts have to fit into <code>int128</code> deltas. If graduation goes over either limit, it reverts every time.</dd><dt>Check</dt><dd>Compare the liquidity graduation adds with <code>maxLiquidityPerTick</code> for the pool's tick spacing. Follow every cast from <code>uint128</code> to <code>int128</code> for amounts and liquidity.</dd><dt>Fix</dt><dd>Calculate the liquidity before minting and keep it under the per-tick limit, spreading it over several ranges if needed. Use checked casts, and give graduation a way to recover if the deposit still fails.</dd></dl></details></li>
+    </ul>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section class="paper" id="compare">
+  <header class="chap">
+    <div class="mark vt" style="font-size:clamp(64px,11vw,100px)">⇄</div>
+    <p class="eyebrow">Before and after graduation</p>
+    <h2>The curve and the pool use the same formula with different reserves</h2>
+  </header>
+  <p>The curve and the pool both use x · y = k. The difference is where the reserves come from and who can trade against them.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th scope="col"></th><th scope="col">Launch curve</th><th scope="col">AMM pool after graduation</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Price rule</th><td class="f">x · y = k, with virtual x₀, y₀</td><td class="f">x · y = k, real reserves only</td></tr>
+        <tr><th scope="row">Liquidity from</th><td>Buyers' quote and the contract's own tokens. Virtual reserves only set the price. Nobody deposits.</td><td>The curve's reserve plus the tokens set aside for the pool.</td></tr>
+        <tr><th scope="row">Can it be pulled</th><td>Only through sells, at curve prices.</td><td>Not if LP tokens are burned.</td></tr>
+        <tr><th scope="row">Opening price</th><td>x₀ / y₀ (0.03 per 1M here)</td><td>The curve's final price (0.75 per 1M)</td></tr>
+        <tr><th scope="row">Tokens traded</th><td>A fixed allotment (800M)</td><td>Whatever was deposited (160M) plus holders' tokens</td></tr>
+        <tr><th scope="row">Ends</th><td>At the graduation target</td><td>Never</td></tr>
+        <tr><th scope="row">Who can trade</th><td>Only through the launchpad contract</td><td>Any router or aggregator</td></tr>
+        <tr><th scope="row">Main audit risks</th><td>Rounding, sniping, a reserve read from balanceOf, the last buy</td><td>Pre-created pools, donations, opening price</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- PROTOCOLS -->
+<section class="paper" id="protocols">
+  <header class="chap">
+    <div class="mark vk" style="font-size:clamp(64px,11vw,100px)">↗</div>
+    <p class="eyebrow">Quick reference · checked October 2026</p>
+    <h2>Who uses constant product curves</h2>
+  </header>
+  <p>Launchpads change often. Check the current docs before relying on a row.</p>
+  <div class="tablewrap"><table class="ptab">
+    <thead><tr><th scope="col">Protocol</th><th scope="col">Role</th><th scope="col">How it is used</th></tr></thead>
+    <tbody>
+      <tr><td><b>Pump.fun</b> (Solana)</td><td>Launch curve</td><td>Constant product with virtual reserves, as in chapter 2.</td></tr>
+      <tr><td><b>Raydium LaunchLab</b> (Solana)</td><td>Launch curve</td><td>Supports constant product, linear and fixed-price curves. Constant product with virtual reserves is the default and the most used.</td></tr>
+      <tr><td><b>PumpSwap</b> (Solana)</td><td>Graduation pool</td><td>Pump.fun's own AMM. Graduated pump.fun tokens migrate here.</td></tr>
+      <tr><td><b>Raydium AMM</b> (Solana)</td><td>Graduation pool</td><td>Raydium's AMM. Graduated pump.fun tokens migrated here before PumpSwap launched.</td></tr>
+      <tr><td><a href="uniswap-math.html#v2" style="color:var(--tok)"><b>Uniswap V2</b></a> (EVM)</td><td>Graduation pool</td><td>The classic EVM x · y = k pool, and the migration target in the last question.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- DICTIONARY -->
+<section class="paper" id="dictionary">
+  <header class="chap">
+    <div class="mark vr" style="font-size:clamp(64px,11vw,100px)">A–Z</div>
+    <p class="eyebrow">Reference · every term in this lesson</p>
+    <h2>Dictionary</h2>
+  </header>
+  <div class="dictctl"><input id="dq" type="search" placeholder="Filter terms, e.g. slippage" aria-label="Filter dictionary"><span id="dcount"></span></div>
+  <div class="letters" id="letters"></div>
+  <div id="dict"></div>
+</section>
+<footer>The numbers are an example, loosely based on pump.fun's constants and rounded to keep the math easy.</footer>
+</main>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const fmt=(v,d=0)=>Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+
+/* ---------- dictionary ---------- */
+const D={
+amm:['AMM','Automated market maker. A contract that holds two tokens and quotes prices from a formula instead of an order book.'],
+bondingcurve:['Bonding curve','A contract that sells a token and buys it back at a price that depends on how many tokens have been sold.'],
+ceil:['Ceiling division','Integer division that rounds up: (a + b − 1) / b.'],
+cei:['Checks-effects-interactions','The safe order inside a function: validate inputs, update state, then make external calls.'],
+counterparty:['Counterparty','Whoever takes the other side of your trade. On a bonding curve it is the contract itself.'],
+cp:['Constant product','The rule x · y = k. Trades move the two reserves so that their product stays the same.'],
+deadline:['Deadline','A timestamp after which a trade must revert, so a signed trade cannot execute much later than intended.'],
+discovery:['Price discovery','Finding a token\'s price through trading. On a curve, only buys and sells move the price, along a public formula.'],
+donation:['Donation','Tokens sent straight to a contract without calling its functions. Breaks any math that reads balanceOf.'],
+frontrun:['Front-running','Placing a transaction just before a known pending one to profit from the price move it will cause.'],
+graduation:['Graduation','The moment a curve stops trading and moves its reserve and a block of tokens into an AMM pool.'],
+impact:['Price impact','How much worse your average price is than the spot price before the trade, because your own trade moves the price as it fills. Given as a percentage.'],
+invariant:['Invariant (k)','A value a formula keeps constant across trades. In constant product, k = x · y.'],
+liquidity:['Liquidity','Money and tokens available to trade against. Without it, nobody can buy or sell.'],
+lp:['LP token','A receipt for liquidity in an AMM pool. Whoever holds it can withdraw the liquidity. Burning it locks the liquidity for good.'],
+mcap:['Market cap','Price times total supply.'],
+migration:['Migration','Another word for graduation: moving liquidity from the curve into an AMM pool.'],
+minout:['minOut','The smallest output a trader accepts. The trade reverts if it would receive less.'],
+mint:['Mint','Create new tokens. Some curves mint on every buy; pump.fun-style curves mint the full supply at launch.'],
+pool:['Pool','An AMM\'s pair of reserves for two tokens, priced by its formula.'],
+quote:['Quote token','The asset you pay with, such as SOL, ETH or USDC.'],
+reentrancy:['Reentrancy','When an external call lets the receiver call back into the contract before the first call has finished updating state.'],
+refund:['Refund','Quote returned to a buyer when only part of the order could be filled.'],
+reserve:['Reserve','The real quote tokens a curve holds from buyers. It pays every seller.'],
+rounding:['Rounding direction','Whether an integer result is rounded up or down. Every rounding should favor the contract, never the trader.'],
+rugpull:['Rug pull','A creator cashes out and leaves holders with a token they cannot sell for much. Common ways: withdrawing the pool\'s liquidity, dumping a large supply they kept, or minting new tokens and selling them.'],
+sandwich:['Sandwich attack','A bot buys just before your trade and sells just after it, profiting from the price move you pay for.'],
+slippage:['Slippage','The gap between a trade\'s expected output and what it actually gets. minOut caps it.'],
+sniping:['Sniping','Buying the first tokens of a new curve within the launch block, usually by bots, at the lowest prices.'],
+solvency:['Solvency','The contract holds enough to pay every holder if they all sell.'],
+spot:['Spot price','The price of the next tiny unit at the current state of the curve. On constant product, x / y.'],
+spread:['Spread','The gap between the price you buy at and the price you can sell at.'],
+terminal:['Last buy','The buy that completes the curve, also called the terminal buy. It is often filled only in part and refunds the rest.'],
+virtual:['Virtual reserves','Starting reserve amounts that exist only in the formula. They set the opening price but can never be withdrawn.'],
+wei:['Wei','The smallest unit of a token. One 18-decimal token is 10¹⁸ wei.']
+};
+
+/* tooltip */
+const tip=$('tip');
+function showTip(el){const d=D[el.dataset.t];if(!d)return;tip.innerHTML='<b></b><span></span>';tip.firstChild.textContent=d[0];tip.lastChild.textContent=d[1];tip.hidden=false;
+  const r=el.getBoundingClientRect(),w=tip.offsetWidth;let left=r.left+window.scrollX;left=Math.max(8,Math.min(left,document.documentElement.clientWidth-w-8));
+  tip.style.left=left+'px';tip.style.top=(r.bottom+window.scrollY+8)+'px';}
+function hideTip(){tip.hidden=true}
+document.querySelectorAll('dfn[data-t]').forEach(el=>{el.tabIndex=0;el.setAttribute('aria-describedby','tip');
+  el.addEventListener('mouseenter',()=>showTip(el));el.addEventListener('mouseleave',hideTip);
+  el.addEventListener('focus',()=>showTip(el));el.addEventListener('blur',hideTip);
+  el.addEventListener('click',e=>{e.preventDefault();tip.hidden?showTip(el):hideTip()});});
+window.addEventListener('scroll',hideTip,{passive:true});
+
+/* dictionary render */
+const entries=Object.values(D).sort((a,b)=>a[0].localeCompare(b[0],'en',{sensitivity:'base'}));
+let letter='';
+function renderDict(){const q=$('dq').value.trim().toLowerCase();
+  const list=entries.filter(e=>(!q||(e[0]+' '+e[1]).toLowerCase().includes(q))&&(!letter||e[0][0].toUpperCase()===letter));
+  const groups={};list.forEach(e=>{const L=e[0][0].toUpperCase();(groups[L]=groups[L]||[]).push(e)});
+  const box=$('dict');box.innerHTML='';
+  Object.keys(groups).sort().forEach(L=>{const g=document.createElement('div');g.className='dgroup';
+    const s=document.createElement('span');s.textContent=L;g.appendChild(s);const dl=document.createElement('dl');
+    groups[L].forEach(e=>{const dt=document.createElement('dt');dt.textContent=e[0];const dd=document.createElement('dd');dd.textContent=e[1];dl.append(dt,dd)});
+    g.appendChild(dl);box.appendChild(g)});
+  if(!list.length){box.innerHTML='<p class="fb">No term matches that filter. Clear the box or pick another letter.</p>'}
+  $('dcount').textContent=list.length+' of '+entries.length+' terms';}
+const present=new Set(entries.map(e=>e[0][0].toUpperCase()));
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(L=>{const b=document.createElement('button');b.textContent=L;b.type='button';b.disabled=!present.has(L);
+  b.setAttribute('aria-pressed','false');
+  b.onclick=()=>{letter=letter===L?'':L;document.querySelectorAll('#letters button').forEach(x=>{x.classList.toggle('on',x.textContent===letter);x.setAttribute('aria-pressed',String(x.textContent===letter))});renderDict()};
+  $('letters').appendChild(b)});
+$('dq').addEventListener('input',renderDict);renderDict();
+
+/* ---------- score ---------- */
+const quizzes=[...document.querySelectorAll('[data-quiz]')];
+const first=new Map();
+function record(id,ok){if(!first.has(id))first.set(id,ok);renderScore()}
+function renderScore(){const right=[...first.values()].filter(Boolean).length;
+  $('score').innerHTML='You answered <b>'+first.size+'</b> of <b>'+quizzes.length+'</b>, <b>'+right+'</b> right on the first try.';}
+renderScore();
+
+/* code highlight */
+const KW=/(\/\/.*$)|("[^"]*")|\b(function|external|internal|public|view|returns|return|uint256|address|bool|require|payable|if|else|msg|block|value)\b|\b(\d[\d_]*)\b/gm;
+document.querySelectorAll('pre.sol').forEach(p=>{const raw=p.textContent;
+  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let out='',last=0;raw.replace(KW,(m,c,s,k,n,off)=>{out+=esc(raw.slice(last,off));
+    const cls=c?'cm':s?'str':k?'kw':'num';out+='<span class="'+cls+'">'+esc(m)+'</span>';last=off+m.length;return m});
+  out+=esc(raw.slice(last));p.innerHTML=out;});
+
+/* MCQ + bug */
+document.querySelectorAll('[data-quiz="mcq"],[data-quiz="bug"]').forEach(q=>{
+  const ans=q.dataset.answer,btns=[...q.querySelectorAll('.opts button')],ex=q.querySelector('.explain'),st=q.querySelector('.qstate');
+  btns.forEach(b=>b.addEventListener('click',()=>{
+    const ok=b.dataset.k===ans;btns.forEach(x=>{x.disabled=true;if(x.dataset.k===ans)x.classList.add('right')});
+    if(!ok)b.classList.add('wrong');
+    const v=document.createElement('p');v.className='verdict '+(ok?'ok':'no');v.textContent=ok?'Right.':'Not this one. The highlighted answer is correct.';
+    ex.prepend(v);ex.hidden=false;st.textContent=ok?'correct':'answered';record(q.id,ok);}));});
+
+/* numeric */
+document.querySelectorAll('[data-quiz="num"]').forEach(q=>{
+  const ans=+q.dataset.ans,tol=+q.dataset.tol,inp=q.querySelector('input'),fb=q.querySelector('.fb'),steps=q.querySelector('.steps'),st=q.querySelector('.qstate');
+  const check=()=>{const v=parseFloat(inp.value.replace(/[, _]/g,''));
+    if(isNaN(v)){fb.className='fb no';fb.textContent='Enter a number, for example 1234.5.';return}
+    const ok=Math.abs(v-ans)<=tol;record(q.id,ok);
+    fb.className='fb '+(ok?'ok':'no');
+    fb.textContent=ok?'Right. '+fmt(ans,ans%1?2:0)+' is the answer.':(v>ans?'Too high. ':'Too low. ')+'Try again, or open the steps.';
+    st.textContent=ok?'correct':'answered';};
+  q.querySelector('[data-check]').addEventListener('click',check);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')check()});
+  const sb=q.querySelector('[data-steps]');sb.addEventListener('click',()=>{steps.hidden=!steps.hidden;sb.textContent=steps.hidden?'Show the steps':'Hide the steps'});});
+
+/* security checkboxes */
+function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+document.querySelectorAll('.sec').forEach(s=>{const boxes=[...s.querySelectorAll('input[type=checkbox]')],cnt=s.querySelector('.cnt');
+  const upd=()=>{cnt.textContent=boxes.filter(b=>b.checked).length+' of '+boxes.length+' checked'};
+  boxes.forEach(b=>{if(load('bc-'+b.id)==='1')b.checked=true;b.addEventListener('change',()=>{store('bc-'+b.id,b.checked?'1':'0');upd()})});upd();});
+
+/* ---------- charts ---------- */
+function chart(id,o){const W=640,H=300,L=64,R=22,T=16,B=48;
+  const X=v=>L+(v-o.x0)/(o.x1-o.x0)*(W-L-R),Y=v=>H-B-(v-o.y0)/(o.y1-o.y0)*(H-T-B);
+  let s=`<defs><clipPath id="${id}-c"><rect x="${L}" y="${T-4}" width="${W-L-R+4}" height="${H-T-B+4}"/></clipPath></defs>`;
+  o.xt.forEach(t=>{s+=`<line class="gl" x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${H-B}"/><text class="tk" x="${X(t)}" y="${H-B+17}" text-anchor="middle">${o.xf(t)}</text>`});
+  o.yt.forEach(t=>{s+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${Y(t)}" y2="${Y(t)}"/><text class="tk" x="${L-8}" y="${Y(t)+4}" text-anchor="end">${o.yf(t)}</text>`});
+  s+=`<line class="ax" x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}"/><line class="ax" x1="${L}" x2="${L}" y1="${T}" y2="${H-B}"/>`;
+  s+=`<text class="axl ${o.xc}" x="${(L+W-R)/2}" y="${H-8}" text-anchor="middle">${o.xl}</text>`;
+  s+=`<text class="axl ${o.yc}" transform="translate(15 ${(T+H-B)/2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
+  return {X,Y,s,clip:`clip-path="url(#${id}-c)"`};}
+function pth(f,a,b,c,n=120){let d='';for(let i=0;i<=n;i++){const x=a+(b-a)*i/n;d+=(i?'L':'M')+c.X(x).toFixed(1)+' '+c.Y(f(x)).toFixed(1)}return d}
+function area(f,a,b,c){if(b<=a)return '';return pth(f,a,b,c,60)+`L${c.X(b).toFixed(1)} ${c.Y(0).toFixed(1)}L${c.X(a).toFixed(1)} ${c.Y(0).toFixed(1)}Z`}
+const dot=(x,y,cls,r=5)=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" class="${cls}"/>`;
+const txt=(x,y,t,cls,anchor='start')=>`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" class="lbl halo ${cls}" text-anchor="${anchor}">${t}</text>`;
+const K=30000, price=s=>K/((1000-s)*(1000-s)), soldAxis={x0:0,x1:800,xt:[0,200,400,600,800],xf:v=>v+'M',xl:'Tokens sold (millions)',xc:'c-tok'};
+
+/* F1 lifecycle */
+function f1(){const s=+$('f1-s').value,x=K/(1000-s),real=x-30,p=price(s);
+  const c=chart('f1',Object.assign({y0:0,y1:.8,yt:[0,.2,.4,.6,.8],yf:v=>v.toFixed(1),yl:'Price per 1M tokens',yc:'c-res'},soldAxis));
+  let g=c.s+`<path class="ar-res" d="${area(price,0,s,c)}"/><path class="ln-res" d="${pth(price,0,800,c)}"/>`;
+  g+=`<line class="grad" x1="${c.X(800)}" x2="${c.X(800)}" y1="${c.Y(.8)}" y2="${c.Y(0)}"/>`+txt(c.X(800)-6,c.Y(.77),'graduation','c-mut','end');
+  if(s>=200)g+=txt(c.X(s/2),c.Y(0)-10,'money paid in','c-res','middle');
+  g+=dot(c.X(s),c.Y(p),'c-key');
+  $('f1svg').innerHTML=g;
+  $('f1-sv').textContent=s+'M of 800M';
+  $('f1-ph').textContent=s>=800?'Graduates now':'On the curve';
+  $('f1-x').textContent=fmt(p/price(0),2)+'×';$('f1-r').textContent=fmt(real,2)+' quote';$('f1-m').textContent=fmt(p*1000,1)+' quote';}
+
+/* F2 hyperbola */
+function f2(){const x0=30,y0=1000,q=+$('f2-q').value,x1=x0+q,y1=K/x1,out=y0-y1;
+  const c=chart('f2',{x0:0,x1:180,y0:0,y1:1100,xt:[0,30,60,90,120,150,180],yt:[0,200,400,600,800,1000],xf:v=>v,yf:v=>fmt(v),xl:'Quote side x (virtual)',yl:'Token side y (millions)',xc:'c-res',yc:'c-tok'});
+  let g=c.s+`<g ${c.clip}><path class="ln-tok" d="${pth(x=>K/x,K/1100,180,c)}"/></g>`;
+  g+=`<line class="grad" x1="${c.X(150)}" x2="${c.X(150)}" y1="${c.Y(1100)}" y2="${c.Y(0)}"/>`+txt(c.X(150)-6,c.Y(1060),'graduation','c-mut','end');
+  if(q>0){g+=`<line x1="${c.X(x0)}" x2="${c.X(x1)}" y1="${c.Y(y0)}" y2="${c.Y(y0)}" stroke="var(--res)" stroke-width="2" class="dash"/>`;
+    g+=`<line x1="${c.X(x1)}" x2="${c.X(x1)}" y1="${c.Y(y0)}" y2="${c.Y(y1)}" stroke="var(--key)" stroke-width="3"/>`;
+    g+=txt(c.X(x1)+8,c.Y((y0+y1)/2)+4,'Δy = '+fmt(out,1)+'M','c-key');
+    g+=txt(c.X((x0+x1)/2),c.Y(y0)-8,'Δx = '+q,'c-res','middle');}
+  g+=dot(c.X(x0),c.Y(y0),'c-tok')+dot(c.X(x1),c.Y(y1),'c-key');
+  $('f2svg').innerHTML=g;
+  const sp0=x0/y0,sp1=x1/y1;
+  $('f2-qv').textContent=q+' quote';$('f2-o').textContent=fmt(out,2)+'M';$('f2-a').textContent=q?fmt(q/out,4):'—';
+  $('f2-p').textContent=fmt(sp1,4);$('f2-i').textContent=q?'+'+fmt((q/out/sp0-1)*100,1)+'%':'0.0%';}
+
+/* F3 sandwich */
+function f3(){const a=+$('f3-a').value,f=+$('f3-f').value/100,me=10,sold=q=>1000-K/(30+q);
+  const clean=sold(me),sA=sold(a),sY=sold(a+me),mine=sY-sA;
+  const ySell=K/(30+a+me)+sA,out=(30+a+me)-K/ySell,prof=out*(1-f)-a*(1+f);
+  const c=chart('f3',{x0:0,x1:700,y0:0,y1:.25,xt:[0,100,200,300,400,500,600,700],xf:v=>v+'M',xl:'Tokens sold (millions)',xc:'c-tok',yt:[0,.05,.1,.15,.2,.25],yf:v=>v.toFixed(2),yl:'Price per 1M tokens',yc:'c-res'});
+  let g=c.s+`<g ${c.clip}>`;
+  if(a>0)g+=`<path class="ar-mut" d="${area(price,0,sA,c)}"/>`;
+  g+=`<path class="ar-key" d="${area(price,sA,sY,c)}"/><path class="ar-key-o" d="${area(price,0,clean,c)}"/>`;
+  g+=`<path class="ln-res" d="${pth(price,0,700,c)}"/></g>`;
+  if(a>0)g+=txt(c.X(sA/2),c.Y(.012),'bot','c-mut','middle');
+  g+=txt(c.X((sA+sY)/2),c.Y(price(sA))-10,'you','c-key','middle');
+  $('f3svg').innerHTML=g;
+  $('f3-av').textContent=a+' quote';$('f3-fv').textContent=fmt(f*100,1)+'%';
+  $('f3-c0').textContent=fmt(clean,1)+'M';$('f3-c1').textContent=fmt(mine,1)+'M';$('f3-x').textContent='−'+fmt(clean-mine,1)+'M';
+  const pe=$('f3-p');pe.textContent=(prof>=0?'+':'−')+fmt(Math.abs(prof),2)+' quote';pe.className='tv '+(a===0?'':prof>=0?'pos':'neg');}
+
+/* F5 graduation */
+function f5(){const r=+$('f5-r').value,a=+$('f5-a').value,X=30+r,Y=K/X,used=Math.min(a,120-r),refund=a-used;
+  const out=Y-K/(X+used),hyp=Y-K/(X+a),minOut=hyp*.99,scaled=minOut*used/a,sold=q=>1000-K/(30+q);
+  const c=chart('f5',{x0:0,x1:180,y0:0,y1:1000,xt:[0,30,60,90,120,150,180],yt:[0,200,400,600,800,1000],xf:v=>v,yf:v=>fmt(v),xl:'Real quote raised',yl:'Tokens sold (millions)',xc:'c-res',yc:'c-tok'});
+  let g=c.s+`<path class="ln-tok" d="${pth(sold,0,120,c)}"/><path class="ln-faint dash" d="${pth(sold,120,180,c)}"/>`;
+  g+=`<line class="grad" x1="${c.X(120)}" x2="${c.X(120)}" y1="${c.Y(1000)}" y2="${c.Y(0)}"/>`+txt(c.X(120)+6,c.Y(960),'graduation at 120','c-mut');
+  g+=`<path class="ln-key" d="${pth(sold,r,r+used,c,40)}"/>`;
+  if(refund>0)g+=`<path class="ln-mut dash" d="${pth(sold,r+used,r+a,c,40)}"/>`;
+  g+=dot(c.X(r),c.Y(sold(r)),'c-tok',4.5)+dot(c.X(r+used),c.Y(sold(r+used)),'c-key');
+  $('f5svg').innerHTML=g;
+  $('f5-rv').textContent=r+' of 120';$('f5-av').textContent=a+' quote';
+  $('f5-u').textContent=fmt(used)+' / '+fmt(refund);$('f5-o').textContent=fmt(out,2)+'M';
+  const n=$('f5-n'),s=$('f5-s'),nOk=out>=minOut-1e-9,sOk=out>=scaled-1e-9;
+  n.textContent=(nOk?'passes ':'reverts ')+fmt(out,1)+(nOk?' ≥ ':' < ')+fmt(minOut,1);n.className='tv '+(nOk?'pos':'neg');
+  s.textContent=(sOk?'passes ':'reverts ')+fmt(out,1)+(sOk?' ≥ ':' < ')+fmt(scaled,1);s.className='tv '+(sOk?'pos':'neg');}
+
+[[f1,['f1-s']],[f2,['f2-q']],[f3,['f3-a','f3-f']],[f5,['f5-r','f5-a']]].forEach(([run,ids])=>{ids.forEach(i=>$(i).addEventListener('input',run));run();});
+
+/* progress + rail */
+const links=[...document.querySelectorAll('.rail a')],secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+function onScroll(){const h=document.documentElement,max=h.scrollHeight-h.clientHeight;$('prog').style.width=(max>0?h.scrollTop/max*100:0)+'%';
+  let cur=0;secs.forEach((s,i)=>{if(s&&s.getBoundingClientRect().top<140)cur=i});links.forEach((a,i)=>a.classList.toggle('on',i===cur));}
+window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+</script>
+
+</body></html>

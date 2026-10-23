@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Solana for EVM auditors · Heavyw8t's Security Academy</title>
+<link rel="icon" href="../assets/logo.jpg">
+<link rel="stylesheet" href="../vendor/fonts/fonts.css">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0A0A0A; --grid:rgba(255,255,255,.035); --card:#141414; --ink:#F2F2F2; --muted:#A3A3A3; --rule:#2A2A2A; --code:#0F0F0F;
+  --tok:#5B9DFF; --tok-soft:rgba(91,157,255,.14);
+  --res:#B58CFF; --res-soft:rgba(181,140,255,.14);
+  --key:#FF7A1A; --key-soft:rgba(255,122,26,.14);
+  --ok:#4CC38A; --ok-soft:rgba(76,195,138,.12); --bad:#F25F5C; --bad-soft:rgba(242,95,92,.12);
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --serif:"Literata",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:70px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+body{background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:28px 28px;color:var(--ink);font:400 17px/1.68 var(--serif);padding-inline:16px;padding-block:72px 80px}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;line-height:1.12;margin:0}
+p{margin:0}
+a{color:var(--tok)}
+:focus-visible{outline:2px solid var(--key);outline-offset:2px;border-radius:4px}
+ .vr{color:var(--res)} .vk{color:var(--key)}
+b.vr,b.vk{font-weight:600}
+/* top bar */
+.topbar{position:fixed;inset:0 0 auto 0;z-index:20;padding-top:env(safe-area-inset-top,0px);background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule)}
+.bar{height:3px;background:var(--rule)}
+.bar i{display:block;height:100%;width:0;background:var(--key)}
+.topin{max-width:1100px;margin:0 auto;padding:8px 16px;display:flex;gap:16px;align-items:center;justify-content:space-between;font:12px/1.4 var(--mono);color:var(--muted)}
+.topin strong{font:700 14px var(--display);color:var(--ink);letter-spacing:.01em;white-space:nowrap}
+#score{text-align:right;font-variant-numeric:tabular-nums}
+#score b{color:var(--ink)}
+@media(max-width:600px){.topin strong{display:none}}
+.layout{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:56px;justify-content:center}
+@media(min-width:1080px){.layout{grid-template-columns:190px minmax(0,720px)}}
+.rail{display:none}
+@media(min-width:1080px){.rail{display:block;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);align-self:start}}
+.rail ol{list-style:none;margin:0;padding:0;display:grid;gap:2px;border-left:1px solid var(--rule)}
+.rail a{display:flex;gap:10px;padding:5px 12px;font:13px/1.3 var(--display);color:var(--muted);text-decoration:none;border-left:2px solid transparent;margin-left:-1px}
+.rail a span{font:11px/1.6 var(--mono);min-width:20px}
+.rail a:hover{color:var(--ink)}
+.rail a.on{color:var(--ink);border-left-color:var(--key);font-weight:600}
+main{min-width:0;display:grid;gap:30px}
+.paper{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:clamp(20px,4vw,40px);display:grid;gap:22px;min-width:0}
+.prose{display:grid;gap:14px}
+.eyebrow{font:600 11.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lead{font-size:19px;line-height:1.6}
+/* hero */
+.hero h1{font-size:clamp(38px,7vw,62px);font-weight:800;letter-spacing:-.02em}
+.hero h1 em{font-style:normal;color:var(--key)}
+.hero svg{width:100%;height:auto;display:block}
+/* chapter header */
+.chap{display:grid;gap:10px;padding-top:6px}
+.mark{font:800 clamp(88px,16vw,150px)/.8 var(--display);letter-spacing:-.04em}
+.mark small{font:600 clamp(18px,3vw,24px) var(--display);letter-spacing:0;margin-left:10px;color:var(--ink);vertical-align:top}
+.chap h2{font-size:clamp(26px,4.4vw,34px);font-weight:700;letter-spacing:-.01em;max-width:30ch}
+h3{font-size:19px;font-weight:700;letter-spacing:.005em}
+/* terms */
+dfn{font-style:normal;text-decoration:underline dotted;text-decoration-thickness:1.5px;text-underline-offset:3px;cursor:help;text-decoration-color:var(--muted)}
+#tip{position:absolute;z-index:40;max-width:300px;background:var(--card);color:var(--ink);font:13.5px/1.5 var(--serif);padding:10px 12px;border:1px solid var(--key);border-radius:8px;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.6)}
+#tip b{font-family:var(--display);display:block;margin-bottom:2px;color:var(--key)}
+/* formula */
+/* symbols */
+.syms{border:1px solid var(--rule);border-radius:10px;padding:16px 18px}
+.syms h4{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.syms dl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:0}
+.syms dt{font:italic 19px/1.4 var(--serif);text-align:right;min-width:44px}
+.syms dd{margin:0;font-size:15.5px;line-height:1.5;align-self:center}
+.plain{border-left:4px solid var(--res);background:var(--res-soft);padding:14px 18px;border-radius:0 10px 10px 0;font-size:16px}
+.plain b{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;display:block;color:var(--res);margin-bottom:4px}
+/* figure */
+.figure{border:1px solid var(--rule);border-radius:12px;padding:16px;display:grid;gap:14px;min-width:0}
+.figure figcaption{font-size:15px;color:var(--muted)}
+.figure figcaption b{font:700 15px var(--display);color:var(--ink);margin-right:4px}
+.figure svg{width:100%;height:auto;display:block;overflow:visible}
+.ctls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px}
+.ctl{display:grid;gap:4px;font:12.5px var(--mono);color:var(--muted)}
+.ctl span{display:flex;justify-content:space-between;gap:8px}
+.ctl b{color:var(--ink);font-variant-numeric:tabular-nums}
+.ctl input{width:100%;accent-color:var(--tok)}
+.ctl.r input{accent-color:var(--res)} .ctl.k input{accent-color:var(--key)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.tile{border:1px solid var(--rule);border-radius:8px;padding:9px 12px;display:grid;gap:2px;min-width:0}
+.tile .tl{font:11px var(--mono);color:var(--muted);letter-spacing:.04em}
+.tile .tv{font:600 19px/1.3 var(--mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile.key{border-color:var(--key);background:var(--key-soft)} .tile.key .tv{color:var(--key)}
+.tv.pos{color:var(--ok)} .tv.neg{color:var(--bad)}
+/* svg */
+/* quiz */
+.quiz{border:1px solid var(--key);border-radius:12px;padding:18px;display:grid;gap:12px}
+.quiz .qh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.quiz .qtag{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.quiz .qstate{font:12px var(--mono);color:var(--muted)}
+.quiz .q{font-size:17px}
+.opts{display:grid;gap:8px}
+.opts button{font:15.5px/1.45 var(--serif);text-align:left;color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:10px 14px 10px 38px;cursor:pointer;display:block;position:relative}
+.opts button code{font-size:13.5px}
+.opts button::before{content:attr(data-k);font:600 12px var(--mono);color:var(--muted);text-transform:uppercase;position:absolute;left:14px;top:13px}
+.opts button:hover:not(:disabled){border-color:var(--muted)}
+.opts button:disabled{cursor:default}
+.opts button.right{border-color:var(--ok);background:var(--ok-soft)}
+.opts button.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.explain{font-size:15.5px;border-top:1px solid var(--rule);padding-top:10px}
+.explain .verdict{font-family:var(--display);font-weight:700;margin-right:6px}
+.verdict.ok{color:var(--ok)} .verdict.no{color:var(--bad)}
+.explain dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0}
+.explain dt{font:600 12px/1.9 var(--mono);color:var(--muted);text-transform:uppercase}
+.explain dd{margin:0}
+.fb{font-size:15px;min-height:1.4em}
+.fb.ok{color:var(--ok)} .fb.no{color:var(--bad)}
+/* code */
+pre.sol{margin:0;font:13px/1.6 var(--mono);background:var(--code);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;overflow-x:auto;tab-size:4}
+pre.segs .seg{display:block}
+pre.segs .gap{height:1.6em}
+pre.segs a.seg{color:inherit;text-decoration:none;--hl:color-mix(in srgb,var(--key) 14%,var(--code));box-shadow:-11px 0 0 var(--code),-13px 0 0 var(--rule)}
+pre.segs a.seg:hover,pre.segs a.seg:focus-visible{background:var(--hl);box-shadow:-11px 0 0 var(--hl),-14px 0 0 var(--key);outline:none}
+.sol .kw{color:var(--tok)} .sol .num{color:var(--res)} .sol .str{color:var(--ok)} .sol .cm{color:var(--muted);font-style:italic}
+code{font-family:var(--mono);font-size:.86em;background:var(--code);border:1px solid var(--rule);border-radius:4px;padding:0 4px}
+/* security */
+/* table */
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+thead th{font:700 13.5px var(--display);background:var(--code)}
+tbody th{font:600 12px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+tr:last-child th,tr:last-child td{border-bottom:0}
+/* dictionary */
+.dictctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+#dq{font:15px var(--mono);padding:9px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--card);color:var(--ink);flex:1 1 220px;min-width:0}
+#dcount{font:12px var(--mono);color:var(--muted)}
+.letters{display:flex;flex-wrap:wrap;gap:4px}
+.letters button{font:600 12px var(--mono);width:28px;height:28px;border-radius:6px;border:1px solid var(--rule);background:var(--card);color:var(--ink);cursor:pointer}
+.letters button:disabled{opacity:.3;cursor:default}
+.letters button.on{background:var(--ink);color:var(--card)}
+#dict{display:grid;gap:4px}
+.dgroup{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding-top:12px;border-top:1px solid var(--rule)}
+.dgroup>span{font:800 28px/1 var(--display);color:var(--muted)}
+.dgroup dl{margin:0;display:grid;gap:10px}
+.dgroup dt{font:700 16px var(--display)}
+.dgroup dd{margin:0;font-size:15.5px;color:var(--ink)}
+.pnote{font-size:15.5px;color:var(--muted)}
+footer{font:12px var(--mono);color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:no-preference){.opts button,.bar i{transition:background-color .15s,border-color .15s,width .1s linear}}
+.explain .verdict{display:block;margin-bottom:4px}
+/* code viewer */
+.sol .kw{color:var(--tok)}
+.sol .at{color:var(--res)}
+.ctl select,.ctl input[type=text]{font:14px var(--mono);padding:7px 9px;border:1px solid var(--rule);border-radius:8px;background:var(--card);color:var(--ink);width:100%}
+.prose h3{font-size:21px;margin-top:12px}
+.prose h4{font-size:17px;margin-top:6px}
+.prose ul{margin:0;padding-left:22px;display:grid;gap:8px}
+</style>
+<meta name="description" content="The biggest differences from the EVM in plain words, then one deposit into a sample vault, step by step.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Heavyw8t's Security Academy">
+<meta property="og:title" content="Solana for EVM auditors">
+<meta property="og:description" content="The biggest differences from the EVM in plain words, then one deposit into a sample vault, step by step.">
+<meta property="og:url" content="https://heavyw8t.github.io/academy/languages/solana-first-audit.html">
+<meta property="og:image" content="https://heavyw8t.github.io/academy/assets/banner.png">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Heavyw8t's Security Academy banner">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@heavyw8t_">
+<meta name="twitter:creator" content="@heavyw8t_">
+</head>
+<body>
+<div class="topbar" role="banner">
+  <div class="bar"><i id="prog"></i></div>
+  <div class="topin"><span><a class="back" href="index.html" style="color:var(--key);text-decoration:none;font:600 13px var(--display);margin-right:14px;white-space:nowrap">&larr; Environments and languages</a><strong>Solana for EVM auditors</strong></span><span id="score" aria-live="polite">You answered 0 of 0, 0 right on the first try.</span></div>
+</div>
+<div id="tip" hidden role="tooltip"></div>
+
+<div class="layout">
+<nav class="rail" aria-label="Chapters">
+  <ol>
+    <li><a href="#intro"><span>00</span>Start here</a></li>
+    <li><a href="#ch1"><span>01</span>The differences</a></li>
+    <li><a href="#ch2"><span>02</span>One deposit</a></li>
+    <li><a href="#code"><span>{ }</span>The whole vault</a></li>
+    <li><a href="#dictionary"><span>A–Z</span>Dictionary</a></li>
+  </ol>
+</nav>
+
+<main>
+<!-- INTRO -->
+<section class="paper hero" id="intro">
+  <p class="eyebrow">2 chapters · 4 questions</p>
+  <h1><em>Solana</em> for EVM auditors</h1>
+  <div class="prose">
+    <p class="lead">If you know Solidity, Solana code will look strange at first. The ideas behind it aren't hard, but they're different from the EVM, and the code only makes sense once you know them.</p>
+    <p>This lesson has two chapters. The first explains the biggest differences from the EVM in plain words. The second follows one deposit into version 1 of our sample vault, step by step, so you can see each difference at work. Later lessons build on the same vault.</p>
+    <p>Every new term is explained where it first comes up. You can also hover over or tap an underlined term, or look it up in the dictionary at the end.</p>
+    <p class="pnote">This is a first look, not a Rust tutorial. In the next lesson we will further enhance our vault and dive deeper into security aspects.</p>
+  </div>
+</section>
+
+<!-- CH1 -->
+<section class="paper" id="ch1">
+  <header class="chap">
+    <div class="mark vr">01<small>The differences</small></div>
+    <p class="eyebrow">Chapter 1 of 2</p>
+    <h2>The biggest differences from the EVM</h2>
+  </header>
+
+  <div class="prose">
+    <h3>Programs hold code, accounts hold data</h3>
+    <p>On Solana, a smart contract is called a <dfn data-t="program">program</dfn>. A program holds only its code. It has no storage of its own.</p>
+    <p>Everything a program stores lives in separate <dfn data-t="account">accounts</dfn>. An account is a record on the chain with its own address. Your wallet is an account, and so is every program.</p>
+    <p>Every account has the same four main fields:</p>
+  </div>
+  <div class="syms">
+    <h4>The fields of an account</h4>
+    <dl>
+      <dt class="vr">lamports</dt><dd>Its balance of SOL, Solana's native coin, counted in <dfn data-t="lamport">lamports</dfn>. 1 SOL is 1,000,000,000 lamports, the way 1 ETH is 10¹⁸ wei.</dd>
+      <dt class="vr">data</dt><dd>The bytes the account stores, for example one user's balance in a vault.</dd>
+      <dt class="vr">owner</dt><dd>The program that may change the data and take lamports out.</dd>
+      <dt class="vr">executable</dt><dd>Whether the account is a program.</dd>
+    </dl>
+  </div>
+  <div class="prose">
+    <h3>Only the owner can change an account</h3>
+    <p>Solana enforces the <dfn data-t="owner">owner</dfn> rule on every account a transaction changes. Only the owner program can change an account's data or take lamports out of it. Any program can add lamports.</p>
+    <p>Wallets are owned by the <dfn data-t="system">System program</dfn>. It's built into Solana, and it creates new accounts and moves SOL between wallets.</p>
+
+    <h3>A transaction lists every account up front</h3>
+    <p>On the EVM, a contract can read any of its own storage slots and call any other contract while it runs, without declaring anything in advance. On Solana, a <dfn data-t="transaction">transaction</dfn> has to list every account it will read or change before it runs. It also marks each account as <dfn data-t="writable">writable</dfn> or read-only.</p>
+    <p>A transaction holds one or more <dfn data-t="instruction">instructions</dfn>. An instruction is one call to one program. It names the program, the accounts, and some input data, such as an amount.</p>
+    <p>Solana needs the list so it can run transactions that use different accounts at the same time.</p>
+
+    <h3>Whoever builds the transaction picks the accounts</h3>
+    <p>A program gets only the accounts in the list, and whoever builds the transaction chooses them. That person can be an attacker.</p>
+    <p>So a program has to check that every account it gets is the one it expects. Many Solana bugs come from one of these checks missing.</p>
+
+    <h3>Every account holds a refundable deposit</h3>
+    <p>On the EVM you pay for storage once, with gas. On Solana, every account has to keep a minimum balance in lamports, and the more bytes it stores, the higher the minimum. This deposit is called <dfn data-t="rent">rent</dfn>.</p>
+    <p>Whoever creates the account pays the deposit. When the account is closed, its lamports go to an address the program picks, usually the one who paid.</p>
+
+    <h3>Signers instead of msg.sender</h3>
+    <p>In Solidity, a call has one caller, <code>msg.sender</code>. A Solana transaction can carry several signatures. Each account in the list is marked as a <dfn data-t="signer">signer</dfn> or not.</p>
+    <p>A signature only proves that someone holds that account's private key. It doesn't prove they're allowed to act. The program has to check that too.</p>
+
+    <h3>PDAs: addresses with no private key</h3>
+    <p>A normal Solana address is a public key, and someone holds the private key behind it. A <dfn data-t="pda">program derived address</dfn>, or PDA, has no private key.</p>
+    <p>Solana computes a PDA from a few inputs called <dfn data-t="seeds">seeds</dfn> and the program's address, a lot like CREATE2 computes an address from a salt. The same inputs always give the same address.</p>
+    <p>One more input, a single byte called the <dfn data-t="bump">bump</dfn>, makes sure the result has no private key.</p>
+
+    <h3>PDAs replace mappings</h3>
+    <p>A Solidity vault stores <code>balances[user]</code>. A Solana vault stores each user's balance in its own account, at the PDA of the seeds <code>"position"</code> and the user's address.</p>
+    <p>Anyone can compute where a user's account is. The program can check that the account it gets sits at that address.</p>
+  </div>
+  <div class="quiz" data-quiz="mcq" id="q3" data-answer="a">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">A vault keeps each user's balance at the PDA of the seeds <code>"position"</code> and the user's address, plus a bump. What would happen if the code dropped the user's address and kept only <code>"position"</code> and the bump?</p>
+    <div class="opts"><button data-k="a">Every user would share one balance account</button><button data-k="b">The address would get a private key</button><button data-k="c">Each user would get a random address instead</button></div>
+    <div class="explain" hidden><p>The seeds decide the address. Without the user's address there's only one possible address, so every deposit lands in the same account, and whoever withdraws first can take everything recorded there.</p><dl><dt>Why not b</dt><dd>The bump is what keeps a PDA's address free of a private key, and the code still uses it. Dropping the user's address only changes which address comes out.</dd><dt>Why not c</dt><dd>The same seeds and the same program always give the same address. Nothing about it is random.</dd></dl></div>
+  </div>
+  <div class="prose">
+
+    <h3>Programs sign for their PDAs</h3>
+    <p>A program can sign for its own PDAs. Nobody else can, because there's no private key.</p>
+    <p>That lets a PDA control tokens for the program, the way <code>address(this)</code> holds tokens for a Solidity contract.</p>
+
+    <h3>One Token program for all tokens</h3>
+    <p>On the EVM, every token is its own ERC-20 contract. On Solana, almost every token uses one shared program, the <dfn data-t="tokenprogram">Token program</dfn>. Newer tokens may use Token-2022, a second token program with extra features such as transfer fees.</p>
+    <p>Each token has a <dfn data-t="mint">mint</dfn> account, which stores its supply and its decimals. Balances live in <dfn data-t="tokenaccount">token accounts</dfn>: each one holds one wallet's balance of one token.</p>
+
+    <h3>Owner and authority are different things</h3>
+    <p>The Token program owns every token account. Inside its data, each token account names an <dfn data-t="authority">authority</dfn>: the wallet or PDA allowed to move its tokens.</p>
+    <p>Keep the two apart. The owner is the program that may change the account. The authority is who may tell the Token program to move the tokens.</p>
+  </div>
+  <div class="quiz" data-quiz="mcq" id="q1" data-answer="b">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">A user deposits tokens into a vault. Which program writes the new balance into the vault's token account?</p>
+    <div class="opts"><button data-k="a">The vault program, because the tokens belong to the vault</button><button data-k="b">The Token program, because it owns the token account</button><button data-k="c">The System program, because it moves balances between accounts</button></div>
+    <div class="explain" hidden><p>Only an account's owner can change its data, and the Token program owns every token account. The vault asks the Token program to move the tokens with a CPI.</p><dl><dt>Why not a</dt><dd>The vault program doesn't own the token account, so Solana would reject any write from it.</dd><dt>Why not c</dt><dd>The System program moves SOL between wallets it owns. It can't change a token account's data.</dd></dl></div>
+  </div>
+  <div class="prose">
+
+    <h3>Calling another program</h3>
+    <p>When one program calls another, Solana calls it a <dfn data-t="cpi">cross-program invocation</dfn>, or CPI. It's the same idea as an external call in Solidity. To move tokens, a program makes a CPI to the Token program.</p>
+    <p>Signatures carry over. If a user signed the transaction, the called program sees that signature too. A program can also sign for one of its PDAs when it makes a CPI.</p>
+
+    <h3>No calls back into the caller</h3>
+    <p>A called program can't call back into a program that's already running higher up in the call chain. If A calls B, B can't call A. A program can still call itself directly.</p>
+    <p>That rules out the classic EVM reentrancy, where a token callback calls back into the contract before it finishes.</p>
+  </div>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th scope="col">On the EVM</th><th scope="col">On Solana</th></tr></thead>
+    <tbody>
+      <tr><td>A contract holds its code and its storage.</td><td>A program holds only code. Its data lives in accounts the program owns.</td></tr>
+      <tr><td>A contract can read any storage slot.</td><td>A transaction lists every account before it runs.</td></tr>
+      <tr><td>Storage is paid for once, with gas.</td><td>Every account holds a refundable deposit, called rent.</td></tr>
+      <tr><td><code>msg.sender</code></td><td>The accounts that signed. There can be several.</td></tr>
+      <tr><td><code>mapping(address =&gt; uint256)</code></td><td>One account per user, at a PDA derived from the user's address</td></tr>
+      <tr><td><code>address(this)</code> holds the tokens.</td><td>A PDA is the authority over the program's token account.</td></tr>
+      <tr><td>One ERC-20 contract per token</td><td>One Token program, a mint per token and token accounts for the balances</td></tr>
+      <tr><td>External call</td><td>CPI</td></tr>
+      <tr><td>A token callback can reenter the caller.</td><td>A called program can't call back into its caller.</td></tr>
+      <tr><td>Wei, 10¹⁸ per ETH</td><td>Lamports, 10⁹ per SOL</td></tr>
+    </tbody>
+  </table></div>
+
+  <figure class="figure" id="f1">
+    <figcaption><b>Who can change what.</b> Pick an account from the sample vault, a program and an action. Solana only checks the owner; anything after that is up to the owner program's own code.</figcaption>
+    <div class="ctls">
+      <label class="ctl"><span>Account</span><select id="f1-a"><option value="wallet">Your wallet</option><option value="position">Your balance in the vault</option><option value="vault">The vault's token account</option></select></label>
+      <label class="ctl"><span>Program</span><select id="f1-p"><option value="vault">The vault program</option><option value="token">The Token program</option><option value="system">The System program</option><option value="other">Some other program</option></select></label>
+      <label class="ctl"><span>Action</span><select id="f1-x"><option value="data">Change its data</option><option value="take">Take lamports out</option><option value="add">Add lamports</option></select></label>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="tl">Owner of this account</span><span class="tv" id="f1-o"></span></div>
+      <div class="tile key"><span class="tl">Solana says</span><span class="tv" id="f1-r"></span></div>
+    </div>
+    <p class="fb" id="f1-why"></p>
+  </figure>
+
+
+
+  <div class="quiz" data-quiz="mcq" id="q4" data-answer="b">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">During a withdraw, the vault makes a CPI to the Token program. Can the Token program call back into the vault's withdraw before it finishes?</p>
+    <div class="opts"><button data-k="a">Yes, the same way an ERC-777 token callback can reenter on the EVM</button><button data-k="b">No, Solana rejects a call into a program that's already running higher up in the call chain</button><button data-k="c">Only if the user signs the transaction twice</button></div>
+    <div class="explain" hidden><p>The vault is already running when it calls the Token program, so a call back into the vault fails. This removes the classic EVM reentrancy.</p><dl><dt>Why not a</dt><dd>That's how the EVM works. Solana blocks A → B → A.</dd><dt>Why not c</dt><dd>Signatures have nothing to do with it. The rule is about which programs are already running.</dd></dl></div>
+  </div>
+</section>
+
+<!-- CH2 -->
+<section class="paper" id="ch2">
+  <header class="chap">
+    <div class="mark vk">02<small>One deposit</small></div>
+    <p class="eyebrow">Chapter 2 of 2</p>
+    <h2>One deposit, step by step</h2>
+  </header>
+  <div class="prose">
+    <p>Now let's follow one deposit through version 1 of our sample vault. It's as small as a vault can be: users deposit a token and withdraw it again, and nothing else.</p>
+    <p>Here's the deposit in a Solidity version of the same vault, so you have something to compare against:</p>
+  </div>
+<pre class="sol">function deposit(uint256 amount) external {
+    balances[msg.sender] += amount;
+    token.safeTransferFrom(msg.sender, address(this), amount);
+}</pre>
+  <div class="prose">
+    <p>On Solana, the same deposit uses six accounts. We'll follow Alice, who deposits 100 tokens for the first time.</p>
+
+    <h3 id="before">What exists before Alice deposits</h3>
+    <p>The vault was set up earlier. These accounts already exist:</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th scope="col">Account</th><th scope="col">What it holds</th><th scope="col">Owner</th></tr></thead>
+    <tbody>
+      <tr><td>The vault program</td><td>The vault's code</td><td>Solana's program loader</td></tr>
+      <tr><td>The vault's token account, at the PDA of <code>"vault"</code></td><td>The tokens everyone deposited. Its authority is its own address, so only the vault program can sign for it.</td><td>Token program</td></tr>
+      <tr><td>The mint</td><td>The token's supply and decimals</td><td>Token program</td></tr>
+      <tr><td>Alice's wallet</td><td>Her SOL</td><td>System program</td></tr>
+      <tr><td>Alice's token account</td><td>Her 100 tokens. Its authority is Alice's wallet.</td><td>Token program</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p>One account is missing: Alice's Position, the account that will record how much she deposited. Her first deposit creates it, at the PDA of <code>"position"</code> and her address.</p>
+
+    <h3>Step 1: Alice's wallet builds the transaction</h3>
+    <p>Alice clicks deposit in the vault's website, and her wallet app builds a transaction with one instruction. The instruction calls the vault's <code>deposit</code> with the amount 100 and lists six accounts:</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th scope="col">Account</th><th scope="col">Signer</th><th scope="col">Writable</th><th scope="col">Why it's there</th></tr></thead>
+    <tbody>
+      <tr><td>Alice's wallet</td><td>yes</td><td>yes</td><td>She approves the deposit and pays the transaction fee and the new account's rent.</td></tr>
+      <tr><td>Alice's Position</td><td>no</td><td>yes</td><td>The vault creates it and writes her balance.</td></tr>
+      <tr><td>Alice's token account</td><td>no</td><td>yes</td><td>100 tokens leave it.</td></tr>
+      <tr><td>The vault's token account</td><td>no</td><td>yes</td><td>100 tokens arrive.</td></tr>
+      <tr><td>Token program</td><td>no</td><td>no</td><td>The vault calls it to move the tokens.</td></tr>
+      <tr><td>System program</td><td>no</td><td>no</td><td>It creates the Position account.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p>Alice signs the transaction with her wallet's private key and sends it.</p>
+
+    <h3>Step 2: the vault checks every account</h3>
+    <p>Remember that whoever builds the transaction picks the accounts. Before the vault does anything, it has to check that each account is the right one.</p>
+    <p>Many Solana programs are written in Rust with <dfn data-t="anchor">Anchor</dfn>, a framework that writes these checks for you. You describe the accounts an instruction takes in a struct, and Anchor checks every account against that description before your function runs.</p>
+
+    <h4 id="accounts">The shape of the description</h4>
+    <p>Here's the vault's description for <code>deposit</code>, with the rules left out for now:</p>
+  </div>
+<pre class="sol">#[derive(Accounts)]
+pub struct Deposit&lt;'info&gt; {
+    pub user: Signer&lt;'info&gt;,
+    pub position: Account&lt;'info, Position&gt;,
+    // ... four more accounts
+}</pre>
+  <div class="prose">
+    <p><code>#[derive(Accounts)]</code> tells Anchor to turn the struct into checks. Each <code>pub</code> line is one account, in the same order as the table in Step 1.</p>
+    <p>You can ignore <code>'info</code>. It's a Rust detail about how long the data is borrowed.</p>
+    <p>In the real code, most accounts also get an <code>#[account(...)]</code> line above them with extra rules. Let's go through them one account at a time.</p>
+
+    <h4 id="acc-user">Alice must sign</h4>
+  </div>
+<pre class="sol">#[account(mut)]
+pub user: Signer&lt;'info&gt;,</pre>
+  <div class="prose">
+    <ul>
+      <li><code>Signer</code>: the account signed the transaction.</li>
+      <li><code>mut</code>: the account is marked writable, so the instruction may change it. Alice's wallet pays the rent for her new Position.</li>
+    </ul>
+
+    <h4 id="acc-position">Alice's Position</h4>
+  </div>
+<pre class="sol">#[account(init_if_needed, payer = user, space = 8 + 8,
+    seeds = [b"position", user.key().as_ref()], bump)]
+pub position: Account&lt;'info, Position&gt;,</pre>
+  <div class="prose">
+    <ul>
+      <li><code>Account&lt;'info, Position&gt;</code>: the vault program owns the account, and its data is a Position. Anchor writes an 8-byte tag at the start of every account it creates, naming the type, and compares that tag here.</li>
+      <li><code>init_if_needed</code>: if the account doesn't exist yet, create it. Anchor only allows this with its <code>init-if-needed</code> feature turned on, and warns about it: the instruction also runs on an account that already exists, so the code must not reset data that's already there. Here it only adds to the amount, which is safe.</li>
+      <li><code>payer = user</code>: Alice pays its rent.</li>
+      <li><code>space</code>: its size in bytes, the 8-byte tag plus the 8-byte amount.</li>
+      <li><code>seeds = [b"position", user.key().as_ref()]</code>: the Position sits at the PDA of "position" and Alice's address, so it's hers. <code>b"position"</code> is the bytes of the text "position", and <code>user.key().as_ref()</code> is Alice's address as bytes.</li>
+      <li><code>bump</code>: the extra byte from chapter 1. Anchor finds it for these seeds.</li>
+    </ul>
+
+    <h4 id="acc-tokens">The two token accounts</h4>
+  </div>
+<pre class="sol">#[account(mut)]
+pub user_tokens: Account&lt;'info, TokenAccount&gt;,
+#[account(mut, seeds = [b"vault"], bump)]
+pub vault_tokens: Account&lt;'info, TokenAccount&gt;,</pre>
+  <div class="prose">
+    <ul>
+      <li><code>Account&lt;'info, TokenAccount&gt;</code>: the Token program owns the account, and its data is a valid token account. Token accounts don't carry Anchor's 8-byte tag, so Anchor checks them this way instead.</li>
+      <li>Alice's token account needs no more rules. In Step 5 the Token program checks that she signed for it and that it holds the same token as the vault's.</li>
+      <li><code>seeds = [b"vault"]</code>: the vault's token account is the one at the PDA of "vault".</li>
+      <li>Both are <code>mut</code>, because tokens leave one and arrive in the other.</li>
+    </ul>
+
+    <h4 id="acc-programs">The two programs</h4>
+  </div>
+<pre class="sol">pub token_program: Program&lt;'info, Token&gt;,
+pub system_program: Program&lt;'info, System&gt;,</pre>
+  <div class="prose">
+    <p><code>Program&lt;'info, Token&gt;</code> checks that the account is the real Token program, not some other program with the same interface. The same goes for the System program. It accepts only the original Token program, so this vault can't take Token-2022 tokens. Programs that support both use <code>Interface&lt;'info, TokenInterface&gt;</code> and <code>InterfaceAccount</code>, and then have to handle Token-2022's extra features.</p>
+    <p>If any check in this step fails, the whole transaction fails and nothing changes. Plain programs written without Anchor have to write each of these checks by hand.</p>
+
+    <h3>Step 3: the vault creates Alice's Position</h3>
+    <p>Alice has no Position yet, so <code>init_if_needed</code> creates one. The vault makes a CPI to the System program, which creates a new account at her Position PDA. The vault signs for that PDA, the System program takes the rent from Alice's wallet, and the vault program becomes the new account's owner.</p>
+  </div>
+  <div class="prose">
+    <h3 id="step4">Step 4: the vault's code runs</h3>
+    <p>Only now does the vault's own <code>deposit</code> function run. It writes Alice's balance.</p>
+  </div>
+<pre class="sol">pub fn deposit(ctx: Context&lt;Deposit&gt;, amount: u64) -&gt; Result&lt;()&gt; {
+    let position = &amp;mut ctx.accounts.position;
+    position.amount = position.amount.checked_add(amount).ok_or(VaultError::Overflow)?;</pre>
+  <div class="prose">
+    <p><code>ctx.accounts</code> holds the six accounts, already checked. <code>amount</code> is the 100 from Alice's instruction.</p>
+    <p>The other two lines add 100 to the amount in her Position. <code>&amp;mut</code> means the code may change the Position.</p>
+    <p><code>checked_add</code> fails on overflow instead of wrapping around. Solidity 0.8 does the same by default. <code>ok_or(...)?</code> turns that failure into the error <code>Overflow</code> and stops the function.</p>
+    <p>The vault may write to the Position because it owns it.</p>
+
+    <h3 id="step5">Step 5: a CPI moves the tokens</h3>
+    <p>The vault can't change token balances itself, because the Token program owns both token accounts. So it asks the Token program to move them.</p>
+
+    <h4>Building the call</h4>
+  </div>
+<pre class="sol">    let cpi = CpiContext::new(ctx.accounts.token_program.to_account_info(), Transfer {
+        from: ctx.accounts.user_tokens.to_account_info(),
+        to: ctx.accounts.vault_tokens.to_account_info(),
+        authority: ctx.accounts.user.to_account_info(),
+    });</pre>
+  <div class="prose">
+    <p><code>CpiContext::new</code> names the program to call, the Token program, and the accounts to pass it. <code>Transfer</code> lists them: where the tokens come from, where they go, and who authorizes it.</p>
+
+    <h4>Making the call</h4>
+  </div>
+<pre class="sol">    token::transfer(cpi, amount)
+}</pre>
+  <div class="prose">
+    <p><code>token::transfer</code> makes the CPI. The Token program checks its own rules: both token accounts hold the same token, and the authority of the account the tokens leave signed. That's Alice.</p>
+    <p>Her signature on the transaction carries over into the CPI, so the check passes. 100 tokens move from her token account to the vault's.</p>
+
+    <h3>After the transaction</h3>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th scope="col">Account</th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
+    <tbody>
+      <tr><td>Alice's wallet</td><td>Her SOL</td><td>Less the Position's rent and the transaction fee</td></tr>
+      <tr><td>Alice's Position</td><td>Doesn't exist</td><td>Exists, owned by the vault program, amount 100</td></tr>
+      <tr><td>Alice's token account</td><td>100 tokens</td><td>0 tokens</td></tr>
+      <tr><td>The vault's token account</td><td>Everyone else's deposits</td><td>100 tokens more</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="prose">
+    <h3 id="withdraw">Withdrawing: the vault signs for its PDA</h3>
+    <p>Withdraw runs the same way in reverse. The vault lowers Alice's amount, then moves tokens from its token account back to hers.</p>
+    <p id="w-accounts">Its accounts are the same as deposit's with two differences. Alice's Position must already exist, so there's no <code>init_if_needed</code> and no System program. Alice pays no rent, so her wallet isn't <code>mut</code>.</p>
+    <p>One thing is new. The tokens now leave the vault's token account, and its authority is its own address, the PDA of "vault". Nobody has a private key for a PDA, so the vault signs for it.</p>
+
+    <h4 id="w-seeds">The seeds</h4>
+  </div>
+<pre class="sol">let seeds: &amp;[&amp;[u8]] = &amp;[b"vault", &amp;[ctx.bumps.vault_tokens]];
+let signer = &amp;[seeds];</pre>
+  <div class="prose">
+    <p>These lines collect the PDA's seeds, "vault", and the bump Anchor found while checking the accounts. A CPI can sign for several PDAs at once, so <code>signer</code> wraps the seeds in a list.</p>
+
+    <h4 id="w-call">The signed call</h4>
+  </div>
+<pre class="sol">let cpi = CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), Transfer {
+    from: ctx.accounts.vault_tokens.to_account_info(),
+    to: ctx.accounts.user_tokens.to_account_info(),
+    authority: ctx.accounts.vault_tokens.to_account_info(),
+}, signer);
+token::transfer(cpi, amount)</pre>
+  <div class="prose">
+    <p><code>new_with_signer</code> passes the seeds along with the call. Solana computes the PDA from these seeds and the vault program's address. The result is the address of the vault's token account, so Solana treats that PDA as a signer in this CPI.</p>
+    <p>Only the vault program can do this, because the PDA is computed from its own address.</p>
+  </div>
+
+  <div class="quiz" data-quiz="mcq" id="q6" data-answer="a">
+    <div class="qh"><span class="qtag">Quiz</span><span class="qstate"></span></div>
+    <p class="q">Suppose the vault dropped the rule <code>seeds = [b"vault"]</code> from <code>vault_tokens</code> in <code>deposit</code>. What could an attacker do?</p>
+    <div class="opts"><button data-k="a">Pass a second token account of their own as <code>vault_tokens</code>, get credited without paying, then withdraw other users' tokens</button><button data-k="b">Nothing, because the Token program only moves tokens into accounts the vault owns</button><button data-k="c">Nothing, because Alice's signature is still required</button></div>
+    <div class="explain" hidden><p>The tokens move from the attacker's token account to another account of theirs, and the vault still adds the amount to their Position. <code>withdraw</code> checks the real vault token account, so it pays the attacker out of everyone else's deposits.</p><dl><dt>Why not b</dt><dd>The Token program checks that the source account's authority signed. It doesn't know which account the vault meant to receive the tokens.</dd><dt>Why not c</dt><dd>The attacker builds and signs their own transaction. Alice isn't involved.</dd></dl></div>
+  </div>
+
+</section>
+
+<!-- FULL CODE -->
+<section class="paper" id="code">
+  <header class="chap">
+    <div class="mark vk" style="font-size:clamp(64px,11vw,100px)">{ }</div>
+    <p class="eyebrow">Every snippet from chapter 2 in one place</p>
+    <h2>The whole vault</h2>
+  </header>
+  <div class="prose">
+    <p>Here's the sample vault as one Anchor program, with <code>deposit</code> and <code>withdraw</code> from chapter 2 in one place. The instruction that creates the vault's token account is left out. Click any part with a bar on its left to jump to its explanation.</p>
+  </div>
+<pre class="sol segs"><span class="seg">use anchor_lang::prelude::*;</span><span class="seg">use anchor_spl::token::{self, Token, TokenAccount, Transfer};</span><span class="seg gap"></span><span class="seg">declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BmZ7FEfcYkg476zPFsLnS");</span><span class="seg gap"></span><span class="seg">#[program]</span><span class="seg">pub mod vault {</span><span class="seg">    use super::*;</span><span class="seg gap"></span><a class="seg" href="#step4" title="Step 4: the vault's code runs">    pub fn deposit(ctx: Context&lt;Deposit&gt;, amount: u64) -&gt; Result&lt;()&gt; {
+        let position = &amp;mut ctx.accounts.position;
+        position.amount = position.amount.checked_add(amount).ok_or(VaultError::Overflow)?;</a><span class="seg gap"></span><a class="seg" href="#step5" title="Step 5: a CPI moves the tokens">        let cpi = CpiContext::new(ctx.accounts.token_program.to_account_info(), Transfer {
+            from: ctx.accounts.user_tokens.to_account_info(),
+            to: ctx.accounts.vault_tokens.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
+        });
+        token::transfer(cpi, amount)</a><span class="seg">    }</span><span class="seg gap"></span><a class="seg" href="#withdraw" title="Withdrawing: the vault signs for its PDA">    pub fn withdraw(ctx: Context&lt;Withdraw&gt;, amount: u64) -&gt; Result&lt;()&gt; {
+        let position = &amp;mut ctx.accounts.position;
+        position.amount = position.amount.checked_sub(amount).ok_or(VaultError::InsufficientBalance)?;</a><span class="seg gap"></span><a class="seg" href="#w-seeds" title="The seeds">        let seeds: &amp;[&amp;[u8]] = &amp;[b"vault", &amp;[ctx.bumps.vault_tokens]];
+        let signer = &amp;[seeds];</a><a class="seg" href="#w-call" title="The signed call">        let cpi = CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), Transfer {
+            from: ctx.accounts.vault_tokens.to_account_info(),
+            to: ctx.accounts.user_tokens.to_account_info(),
+            authority: ctx.accounts.vault_tokens.to_account_info(),
+        }, signer);
+        token::transfer(cpi, amount)</a><span class="seg">    }</span><span class="seg">}</span><span class="seg gap"></span><a class="seg" href="#accounts" title="The shape of the description">#[derive(Accounts)]
+pub struct Deposit&lt;'info&gt; {</a><a class="seg" href="#acc-user" title="Alice must sign">    #[account(mut)]
+    pub user: Signer&lt;'info&gt;,</a><a class="seg" href="#acc-position" title="Alice's Position">    #[account(init_if_needed, payer = user, space = 8 + 8,
+        seeds = [b"position", user.key().as_ref()], bump)]
+    pub position: Account&lt;'info, Position&gt;,</a><a class="seg" href="#acc-tokens" title="The two token accounts">    #[account(mut)]
+    pub user_tokens: Account&lt;'info, TokenAccount&gt;,
+    #[account(mut, seeds = [b"vault"], bump)]
+    pub vault_tokens: Account&lt;'info, TokenAccount&gt;,</a><a class="seg" href="#acc-programs" title="The two programs">    pub token_program: Program&lt;'info, Token&gt;,
+    pub system_program: Program&lt;'info, System&gt;,</a><span class="seg">}</span><span class="seg gap"></span><a class="seg" href="#w-accounts" title="Withdraw's accounts">#[derive(Accounts)]
+pub struct Withdraw&lt;'info&gt; {
+    pub user: Signer&lt;'info&gt;,
+    #[account(mut, seeds = [b"position", user.key().as_ref()], bump)]
+    pub position: Account&lt;'info, Position&gt;,
+    #[account(mut)]
+    pub user_tokens: Account&lt;'info, TokenAccount&gt;,
+    #[account(mut, seeds = [b"vault"], bump)]
+    pub vault_tokens: Account&lt;'info, TokenAccount&gt;,
+    pub token_program: Program&lt;'info, Token&gt;,
+}</a><span class="seg gap"></span><a class="seg" href="#acc-position" title="Alice's Position">#[account]
+pub struct Position {
+    pub amount: u64,
+}</a><span class="seg gap"></span><a class="seg" href="#step4" title="Step 4: the vault's code runs">#[error_code]
+pub enum VaultError {
+    #[msg("Amount overflows")]
+    Overflow,
+    #[msg("Not enough deposited")]
+    InsufficientBalance,
+}</a></pre>
+  <div class="prose">
+    <h3>What comes next</h3>
+    <p>This is version 1 of the vault. In the next lesson we will further enhance our vault and dive deeper into security aspects.</p>
+  </div>
+</section>
+
+<!-- DICTIONARY -->
+<section class="paper" id="dictionary">
+  <header class="chap">
+    <div class="mark vr" style="font-size:clamp(64px,11vw,100px)">A–Z</div>
+    <p class="eyebrow">Every term in this lesson</p>
+    <h2>Dictionary</h2>
+  </header>
+  <div class="dictctl"><input id="dq" type="search" placeholder="Filter terms, e.g. seeds" aria-label="Filter dictionary"><span id="dcount"></span></div>
+  <div class="letters" id="letters"></div>
+  <div id="dict"></div>
+</section>
+<footer>The vault code is written for this lesson. It is not audited and is not meant for production.</footer>
+</main>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const fmt=(v,d=0)=>Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ---------- dictionary ---------- */
+const D={
+account:['Account','A record on the chain with its own address. It has a lamport balance, a data byte array, an owner program and an executable flag. Wallets, programs and program data are all accounts.'],
+anchor:['Anchor','The most used framework for writing Solana programs in Rust. You describe each instruction\'s accounts and their rules in a #[derive(Accounts)] struct, and Anchor generates the code that checks them.'],
+authority:['Authority','The wallet or PDA a token account names as allowed to move its tokens. Not the same as the account\'s owner, which is always the Token program.'],
+bump:['Bump','One byte added to a PDA\'s seeds so that the address has no private key.'],
+cpi:['CPI','Cross-program invocation: one program calling another during the same instruction. The EVM equivalent is an external call.'],
+instruction:['Instruction','One call to one program inside a transaction: the program, the list of accounts and the input data.'],
+lamport:['Lamport','The smallest unit of SOL. 1 SOL is 1,000,000,000 lamports.'],
+mint:['Mint','The account that defines a token: its supply, its decimals and who may create new tokens.'],
+owner:['Owner','The program allowed to change an account\'s data and take its lamports. Not the same as a token account\'s authority.'],
+pda:['PDA','Program derived address: an address computed from seeds, a bump and a program\'s address, with no private key. Only that program can sign for it.'],
+program:['Program','A Solana smart contract. Its code is in an executable account; it keeps no state of its own.'],
+rent:['Rent','The lamport deposit every account must hold, based on its size. Returned when the account is closed.'],
+seeds:['Seeds','The byte strings a PDA is computed from. They work like the keys of a mapping.'],
+signer:['Signer','An account whose private key signed the transaction, or a PDA its program signed for in a CPI.'],
+system:['System program','The program built into Solana that owns wallets, creates new accounts and moves SOL between wallets.'],
+tokenaccount:['Token account','An account owned by the Token program that holds one wallet\'s balance of one token.'],
+tokenprogram:['Token program','The shared program almost every Solana token uses. It owns every mint and token account and moves tokens between them.'],
+transaction:['Transaction','A signed message that holds one or more instructions and lists every account they will read or change.'],
+writable:['Writable','A flag the transaction sets on each account it may change. An instruction can only change accounts marked writable.']
+};
+const tip=$('tip');
+function showTip(el){const d=D[el.dataset.t];if(!d)return;tip.innerHTML='<b></b><span></span>';tip.firstChild.textContent=d[0];tip.lastChild.textContent=d[1];tip.hidden=false;
+  const r=el.getBoundingClientRect(),w=tip.offsetWidth;let left=r.left+window.scrollX;left=Math.max(8,Math.min(left,document.documentElement.clientWidth-w-8));
+  tip.style.left=left+'px';tip.style.top=(r.bottom+window.scrollY+8)+'px';}
+function hideTip(){tip.hidden=true}
+document.querySelectorAll('dfn[data-t]').forEach(el=>{el.tabIndex=0;
+  el.addEventListener('mouseenter',()=>showTip(el));el.addEventListener('mouseleave',hideTip);
+  el.addEventListener('focus',()=>showTip(el));el.addEventListener('blur',hideTip);
+  el.addEventListener('click',e=>{e.preventDefault();tip.hidden?showTip(el):hideTip()});});
+window.addEventListener('scroll',hideTip,{passive:true});
+const entries=Object.values(D).sort((a,b)=>a[0].localeCompare(b[0],'en',{sensitivity:'base'}));
+let letter='';
+function renderDict(){const q=$('dq').value.trim().toLowerCase();
+  const list=entries.filter(e=>(!q||(e[0]+' '+e[1]).toLowerCase().includes(q))&&(!letter||e[0][0].toUpperCase()===letter));
+  const groups={};list.forEach(e=>{const L=e[0][0].toUpperCase();(groups[L]=groups[L]||[]).push(e)});
+  const box=$('dict');box.innerHTML='';
+  Object.keys(groups).sort().forEach(L=>{const g=document.createElement('div');g.className='dgroup';
+    const s=document.createElement('span');s.textContent=L;g.appendChild(s);const dl=document.createElement('dl');
+    groups[L].forEach(e=>{const dt=document.createElement('dt');dt.textContent=e[0];const dd=document.createElement('dd');dd.textContent=e[1];dl.append(dt,dd)});
+    g.appendChild(dl);box.appendChild(g)});
+  if(!list.length){box.innerHTML='<p class="fb">No term matches that filter. Clear the box or pick another letter.</p>'}
+  $('dcount').textContent=list.length+' of '+entries.length+' terms';}
+const present=new Set(entries.map(e=>e[0][0].toUpperCase()));
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(L=>{const b=document.createElement('button');b.textContent=L;b.type='button';b.disabled=!present.has(L);
+  b.onclick=()=>{letter=letter===L?'':L;document.querySelectorAll('#letters button').forEach(x=>x.classList.toggle('on',x.textContent===letter));renderDict()};
+  $('letters').appendChild(b)});
+$('dq').addEventListener('input',renderDict);renderDict();
+
+/* ---------- syntax highlight ---------- */
+const KWS=/(\/\/.*$)|("[^"]*")|\b(fn|pub|let|mut|struct|enum|impl|use|mod|if|else|return|match|self|super|Ok|Err|Result|function|external|internal|public|immutable|returns|return|uint256|uint64|u64|u8|u16|address|bool|require|contract|mapping|constructor|pragma|import|using|for|true|false|memory)\b|(#\[[^\]]*\]|\b[a-z_]+!)|\b(\d[\d_]*)\b/g;
+function hl(raw){let out='',last=0;raw.replace(KWS,(m,c,s,k,a,n,off)=>{out+=esc(raw.slice(last,off));
+    const cls=c?'cm':s?'str':k?'kw':a?'at':'num';out+='<span class="'+cls+'">'+esc(m)+'</span>';last=off+m.length;return m});
+  return out+esc(raw.slice(last));}
+document.querySelectorAll('pre.sol').forEach(p=>{const segs=p.querySelectorAll('.seg');(segs.length?segs:[p]).forEach(e=>{e.innerHTML=e.textContent.split('\n').map(hl).join('\n')})});
+
+/* ---------- score ---------- */
+const quizzes=[...document.querySelectorAll('[data-quiz]')];
+const first=new Map();
+function record(id,ok){if(!first.has(id))first.set(id,ok);renderScore()}
+function renderScore(){const right=[...first.values()].filter(Boolean).length;
+  $('score').innerHTML='You answered <b>'+first.size+'</b> of <b>'+quizzes.length+'</b>, <b>'+right+'</b> right on the first try.';}
+renderScore();
+document.querySelectorAll('[data-quiz="mcq"]').forEach(q=>{
+  const ans=q.dataset.answer,btns=[...q.querySelectorAll('.opts button')],ex=q.querySelector('.explain'),st=q.querySelector('.qstate');
+  btns.forEach(b=>b.addEventListener('click',()=>{
+    const ok=b.dataset.k===ans;btns.forEach(x=>{x.disabled=true;if(x.dataset.k===ans)x.classList.add('right')});
+    if(!ok)b.classList.add('wrong');
+    const v=document.createElement('p');v.className='verdict '+(ok?'ok':'no');v.textContent=ok?'Right.':'Not this one. The highlighted answer is correct.';
+    ex.prepend(v);ex.hidden=false;st.textContent=ok?'correct':'answered';record(q.id,ok);}));});
+
+/* ---------- F1 who can change what ---------- */
+const OWN={wallet:['system','System program'],position:['vault','Vault program'],vault:['token','Token program']};
+const PN={vault:'the vault program',token:'the Token program',system:'the System program',other:'another program'};
+function f1(){const a=$('f1-a').value,p=$('f1-p').value,x=$('f1-x').value,[o,on]=OWN[a];
+  $('f1-o').textContent=on;let ok,why;
+  if(x==='add'){ok=true;why='Any program can add lamports to any account the transaction marks as writable.';}
+  else if(p!==o){ok=false;why='Only the owner, '+on+', can '+(x==='data'?'change the data':'take lamports out')+'. Solana rejects '+PN[p]+'.';}
+  else{ok=true;why='Solana allows it because '+on+' owns the account, as long as the transaction marks it writable.';
+    if(a==='wallet')why+=x==='data'?' The System program then changes a wallet only if the wallet signed.':' The System program then moves lamports out only if the wallet signed.';
+    if(a==='vault')why+=' The Token program then checks its own rule: the token account\'s authority, a PDA of the vault, must sign.';
+    if(a==='position')why+=' Whether it should is up to the vault\'s own checks.';}
+  const r=$('f1-r');r.textContent=ok?'Allowed':'Rejected';r.className='tv '+(ok?'pos':'neg');$('f1-why').textContent=why;}
+['f1-a','f1-p','f1-x'].forEach(i=>$(i).addEventListener('input',f1));f1();
+
+/* ---------- progress + rail ---------- */
+const links=[...document.querySelectorAll('.rail a')],secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+function onScroll(){const h=document.documentElement,max=h.scrollHeight-h.clientHeight;$('prog').style.width=(max>0?h.scrollTop/max*100:0)+'%';
+  let cur=0;secs.forEach((s,i)=>{if(s&&s.getBoundingClientRect().top<140)cur=i});links.forEach((a,i)=>a.classList.toggle('on',i===cur));}
+window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Uniswap math, V1 to V4 · Heavyw8t's Security Academy</title>
+<meta name="description" content="Constant product, concentrated liquidity, ticks, TWAPs and hooks, with interactive figures.">
+<link rel="icon" href="../assets/logo.jpg">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Heavyw8t's Security Academy">
+<meta property="og:title" content="Uniswap math, V1 to V4">
+<meta property="og:description" content="Constant product, concentrated liquidity, ticks, TWAPs and hooks, with interactive figures.">
+<meta property="og:url" content="https://heavyw8t.github.io/academy/protocols/uniswap-math.html">
+<meta property="og:image" content="https://heavyw8t.github.io/academy/assets/banner.png">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Heavyw8t's Security Academy banner">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@heavyw8t_">
+<meta name="twitter:creator" content="@heavyw8t_">
+<link rel="stylesheet" href="../vendor/fonts/fonts.css">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}
+img{max-width:100%}
+[hidden]:not([hidden=until-found i]){display:none!important}
+/* Layout: graph-paper reading desk. Sticky chapter rail on the left, one 720px reading column, figures break slightly wider. Token X (ETH) is always blue, token Y (USDC) always purple, liquidity L always orange (the site accent). */
+:root{
+  color-scheme:dark;
+  --bg:#0A0A0A; --paper:#141414; --ink:#F2F2F2; --muted:#A3A3A3; --rule:#2A2A2A; --grid:#161616;
+  --x:#5B9DFF; --y:#B58CFF; --L:#FF7A1A; --good:#4CC38A; --bad:#F25F5C;
+  --x-soft:rgba(91,157,255,.16); --y-soft:rgba(181,140,255,.16); --L-soft:rgba(255,122,26,.14);
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Literata", Georgia, "Times New Roman", serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:28px 28px;background-attachment:fixed}
+#progress{position:fixed;top:0;left:0;height:3px;background:var(--L);width:0;z-index:20}
+.shell{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;max-width:1080px;margin:0 auto;padding-inline:24px;padding-block:40px 80px}
+nav.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 28px);align-self:start;font-family:var(--display);font-size:14px}
+nav.rail .brand{font-weight:800;font-size:15px;letter-spacing:.02em;margin-bottom:14px}
+nav.rail ol{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+nav.rail a{display:flex;gap:10px;align-items:baseline;color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px}
+nav.rail a .v{font-family:var(--mono);font-size:12px;min-width:2.2em}
+nav.rail a:hover{color:var(--ink);background:var(--paper)}
+nav.rail a.on{color:var(--ink);background:var(--paper);box-shadow:inset 3px 0 0 var(--L)}
+nav.rail .time{margin-top:18px;color:var(--muted);font-size:12px;line-height:1.5}
+main{min-width:0;max-width:720px}
+.mback{display:none;margin-top:18px;color:var(--L);text-decoration:none;font:600 13px var(--display)}
+@media (max-width:860px){.shell{grid-template-columns:minmax(0,1fr);padding-inline:16px;gap:0}nav.rail{display:none}.mback{display:inline-block}}
+
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(38px,6vw,60px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(28px,4vw,38px);font-weight:800;letter-spacing:-.01em}
+h3{font-size:21px;font-weight:700;margin-top:38px;margin-bottom:6px}
+p{margin:14px 0}
+a{color:var(--x)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:19px;color:var(--muted);max-width:60ch}
+section.chapter{padding-top:64px;margin-top:40px;border-top:2px solid var(--ink)}
+.chapter-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 20px;align-items:end;margin-bottom:10px}
+.chapter-head .big{font-family:var(--display);font-weight:800;font-size:clamp(64px,10vw,104px);line-height:.85;color:var(--L);letter-spacing:-.04em;grid-row:span 2}
+.chapter-head .eyebrow{align-self:end}
+@media (max-width:480px){.chapter-head{grid-template-columns:minmax(0,1fr)}.chapter-head .big{grid-row:auto}}
+
+/* variables */
+.vx{color:var(--x);font-style:italic;font-weight:600}
+.vy{color:var(--y);font-style:italic;font-weight:600}
+.vL{color:var(--L);font-style:italic;font-weight:600}
+.vk{font-style:italic;font-weight:600}
+.f{font-family:var(--body);font-size:21px;background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:16px 20px;margin:18px 0;overflow-x:auto;text-align:center;white-space:nowrap}
+.f small{display:block;font-size:14px;color:var(--muted);white-space:normal;margin-top:6px;font-family:var(--body)}
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 4px}
+.fr>span:first-child{border-bottom:1.5px solid currentColor;padding:0 4px}
+.fr>span:last-child{padding:0 4px}
+code,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:1px 5px}
+
+/* boxes */
+.symbols{border:1px solid var(--rule);background:var(--paper);border-radius:8px;padding:14px 18px;margin:20px 0;font-size:15.5px}
+.symbols .eyebrow{margin-bottom:6px}
+.symbols dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 16px;margin:0}
+.symbols dt{font-size:18px;text-align:center;min-width:2.2em}
+.symbols dd{margin:0}
+.plain{border-top:1px solid var(--rule);padding:10px 0 0;margin:18px 0;color:var(--ink)}
+.plain::before{content:"In plain words";display:block;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--y);margin-bottom:2px}
+.audit{border:1px dashed var(--muted);border-radius:8px;padding:12px 16px;margin:20px 0;font-size:15.5px}
+.audit::before{content:"Auditor's note";display:block;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.check{border:1px solid var(--rule);border-top:3px solid var(--ink);background:var(--paper);border-radius:8px;padding:12px 16px 6px;margin:22px 0;font-size:15.5px}
+.check>.eyebrow{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.check>.eyebrow b{color:var(--ink);font-weight:600}
+.check ul{list-style:none;margin:0;padding:0}
+.check li{border-top:1px solid var(--rule);padding:9px 0}
+.check li:first-child{border-top:0}
+.check .item{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:start}
+.check .item input{margin:5px 0 0;width:16px;height:16px;accent-color:var(--good);cursor:pointer}
+.check .ask{font-family:var(--display);font-weight:600;font-size:15.5px;line-height:1.4;cursor:pointer}
+.check .item>div>p{margin:4px 0 0;color:var(--muted)}
+.check details{margin-top:4px}
+.check summary{font-family:var(--display);font-size:13px;color:var(--x);cursor:pointer;width:max-content;max-width:100%}
+.check dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:8px 0 2px;font-size:15px}
+.check dt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.check dd{margin:0}
+.check .ref{font-size:13px;color:var(--muted)}
+.check li.done .ask{text-decoration:line-through;text-decoration-color:var(--muted)}
+.new{border-bottom:1.5px dotted var(--L);cursor:help}
+.new:focus{outline:2px solid var(--L);outline-offset:2px}
+.new:hover{color:var(--L)}
+.termpop{position:absolute;z-index:30;max-width:min(340px,calc(100vw - 16px));background:var(--paper);border:1px solid var(--L);border-radius:8px;padding:12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.6);font-family:var(--display);font-size:14px;line-height:1.5;color:var(--ink)}
+.termpop .tp-term{font-weight:700;color:var(--L);margin-bottom:4px}
+.termpop .tp-def{color:var(--ink)}
+.termpop .tp-link{display:inline-block;margin-top:8px;color:var(--L);text-decoration:none;font-size:13px}
+.termpop .tp-link:hover{text-decoration:underline}
+
+/* worked example */
+.worked{background:var(--paper);border:1px solid var(--rule);border-radius:10px;margin:24px 0;overflow:hidden}
+.worked header{padding:10px 18px;border-bottom:1px solid var(--rule);font-family:var(--display);font-weight:700;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.worked header .eyebrow{color:var(--L)}
+.worked ol{margin:0;padding:14px 18px 16px 44px;display:grid;gap:10px;font-size:16px}
+.worked li::marker{font-family:var(--mono);color:var(--muted);font-size:13px}
+.worked .calc{font-family:var(--mono);font-size:14px;display:block;background:var(--bg);padding:6px 10px;border-radius:6px;margin-top:4px;white-space:pre-wrap;overflow-wrap:break-word}
+
+/* figures */
+figure.lab{margin:28px -24px;background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:18px 20px 16px}
+@media (max-width:860px){figure.lab{margin-inline:0;padding:14px 12px}}
+figure.lab figcaption{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;margin-bottom:8px}
+figure.lab figcaption b{font-family:var(--display);font-size:17px}
+figure.lab .hint{font-size:13px;color:var(--muted);font-family:var(--display)}
+svg.chart{width:100%;height:auto;display:block;touch-action:none;font-family:var(--display)}
+svg.chart text{fill:var(--muted);font-size:11px}
+svg.chart .axis{stroke:var(--rule);stroke-width:1}
+svg.chart .gl{stroke:var(--grid);stroke-width:1}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 20px;margin-top:12px;font-family:var(--display);font-size:14px}
+.controls label{display:grid;gap:4px}
+.controls label span{display:flex;justify-content:space-between;gap:8px}
+.controls output{font-family:var(--mono);font-size:13px;color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--L)}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.readout div{border-top:1px solid var(--rule);padding-top:6px}
+.readout .k{font-family:var(--display);font-size:12px;color:var(--muted)}
+.readout .val{font-family:var(--mono);font-size:17px;font-variant-numeric:tabular-nums}
+.toggle{display:inline-flex;gap:8px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.btn{font-family:var(--display);font-size:14px;font-weight:600;border:1px solid var(--ink);background:transparent;color:var(--ink);border-radius:6px;padding:7px 14px;cursor:pointer}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--L);outline-offset:2px}
+.btn[disabled]{opacity:.4;cursor:default;background:transparent;color:var(--ink)}
+
+/* quiz */
+.quiz{margin:28px 0;padding:18px 20px;border:2px solid var(--L);border-radius:10px;background:var(--paper)}
+.quiz .eyebrow{color:var(--L)}
+.quiz .q{font-family:var(--display);font-weight:700;font-size:18px;margin:4px 0 12px;line-height:1.35}
+.quiz .opts{display:grid;gap:8px}
+.quiz button.opt{text-align:left;font-family:var(--body);font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--rule);border-radius:8px;padding:9px 14px;cursor:pointer}
+.quiz button.opt:hover{border-color:var(--ink)}
+.quiz button.opt.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--paper))}
+.quiz button.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,var(--paper))}
+.quiz .why{margin-top:12px;font-size:15.5px}
+.quiz .why b.ok{color:var(--good)} .quiz .why b.no{color:var(--bad)}
+.quiz pre{font-family:var(--mono);font-size:13px;line-height:1.55;background:var(--bg);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;margin:0 0 12px;overflow-x:auto;color:var(--ink)}
+.quiz pre .cm{color:var(--muted)}
+.tryit{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tryit input{font-family:var(--mono);font-size:16px;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--ink);width:180px;max-width:100%}
+
+/* tables */
+.tablewrap{overflow-x:auto;margin:20px 0;border:1px solid var(--rule);border-radius:10px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:620px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--display);font-size:13px;color:var(--muted);font-weight:600}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+
+/* hooks grid */
+.flags{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px;margin-top:8px}
+.flags label{display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:12.5px;padding:5px 8px;border:1px solid var(--rule);border-radius:6px;cursor:pointer}
+.flags label .bit{margin-left:auto;color:var(--muted)}
+.addr{font-family:var(--mono);font-size:15px;margin-top:12px;overflow-x:auto;white-space:nowrap;padding:8px 10px;background:var(--bg);border-radius:6px}
+.addr .hi{color:var(--L);font-weight:600}
+
+/* dictionary */
+dl.dict{display:grid;grid-template-columns:minmax(0,1fr);gap:0;margin:24px 0}
+dl.dict div{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;padding:10px 0;border-bottom:1px solid var(--rule)}
+dl.dict dt{font-family:var(--display);font-weight:700}
+dl.dict dd{margin:0;font-size:15.5px}
+@media (max-width:560px){dl.dict div{grid-template-columns:minmax(0,1fr);gap:2px}}
+.dictfilter{font-family:var(--display);font-size:15px;padding:9px 12px;border:1px solid var(--rule);border-radius:8px;width:100%;background:var(--paper);color:var(--ink)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--display);font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.stack{display:flex;height:28px;border-radius:6px;overflow:hidden;gap:2px;margin-top:6px;background:var(--paper)}
+.stack div{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:var(--paper);min-width:0;overflow:hidden;white-space:nowrap;transition:width .2s}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+footer{margin-top:60px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="shell">
+<nav class="rail" aria-label="Chapters">
+  <div class="brand"><a href="index.html" style="padding:0 0 8px;color:var(--L)">&larr; Protocols</a>Uniswap math</div>
+  <ol>
+    <li><a href="#start"><span class="v">00</span>Start here</a></li>
+    <li><a href="#v1"><span class="v">V1</span>The curve</a></li>
+    <li><a href="#v2"><span class="v">V2</span>Pairs and oracles</a></li>
+    <li><a href="#v3"><span class="v">V3</span>Ranges and ticks</a></li>
+    <li><a href="#v4"><span class="v">V4</span>Hooks and deltas</a></li>
+    <li><a href="#compare"><span class="v">∑</span>Side by side</a></li>
+    <li><a href="#dictionary"><span class="v">A–Z</span>Dictionary</a></li>
+  </ol>
+  <div class="time">About 30 minutes.<br>13 questions, 7 interactive figures, 7 security checks.</div>
+</nav>
+
+<main>
+<header id="start">
+  <a class="mback" href="index.html">&larr; Protocols</a>
+  <h1 style="margin-top:10px">Uniswap math, V1 to V4</h1>
+  <p class="lede">This lesson shows what the contracts compute when you press Swap, one version at a time.</p>
+
+  <div class="symbols">
+    <div class="eyebrow">How to read the formulas</div>
+    <dl>
+      <dt><span class="vx">x</span></dt><dd>Always the amount of the first token in a pool. In the examples this is ETH, and it is always blue.</dd>
+      <dt><span class="vy">y</span></dt><dd>Always the amount of the second token. In the examples this is USDC, and it is always purple.</dd>
+      <dt><span class="vk">Δ</span></dt><dd>"Delta", the Greek letter D. It means "change in". <span class="vx">Δx</span> reads "the change in x", for example the 1 ETH you sell into the pool.</dd>
+      <dt>√</dt><dd>Square root. √9 = 3, because 3 × 3 = 9. It shows up a lot from V3 onward.</dd>
+    </dl>
+  </div>
+
+  <p>Two words you need before anything else. An <span class="new" tabindex="0" title="Automated market maker">AMM</span> (automated market maker) is a contract that quotes prices from a formula instead of from an order book. A <span class="new" tabindex="0">liquidity pool</span> is the pile of two tokens the contract holds. The amounts in the pile are the pool's <span class="new" tabindex="0">reserves</span>. People who deposit into the pile are <span class="new" tabindex="0">liquidity providers</span>, or LPs. Traders swap against the pile and pay a fee, and the fee goes to the LPs.</p>
+</header>
+
+<!-- ============================ V1 ============================ -->
+<section class="chapter" id="v1">
+  <div class="chapter-head">
+    <div class="big">V1</div>
+    <div class="eyebrow">November 2018 · Vyper · ETH paired with one token</div>
+    <h2>One curve does all the pricing</h2>
+  </div>
+  <p>Uniswap V1 had one contract per token, and every pool paired that token with ETH. There was a DAI/ETH pool, an MKR/ETH pool, and so on. The whole pricing rule fits in one line.</p>
+
+  <h3 id="the-constant-product-rule">The constant product rule</h3>
+  <div class="f"><span class="vx">x</span> · <span class="vy">y</span> = <span class="vk">k</span>
+    <small>The reserve of token X times the reserve of token Y must stay equal to k (or grow) after every trade.</small></div>
+  <div class="symbols">
+    <div class="eyebrow">Symbols in play</div>
+    <dl>
+      <dt><span class="vx">x</span></dt><dd>ETH in the pool.</dd>
+      <dt><span class="vy">y</span></dt><dd>Tokens (USDC here) in the pool.</dd>
+      <dt><span class="vk">k</span></dt><dd>The <span class="new" tabindex="0">invariant</span>: a number the trade is not allowed to shrink. It only changes when LPs add or remove liquidity, or when fees pile up.</dd>
+    </dl>
+  </div>
+  <p>Take a pool with 10 ETH and 20,000 USDC. Then <span class="vk">k</span> = 10 × 20,000 = 200,000. A trader who adds ETH must take out enough USDC that the product is still 200,000. Nobody sets the price. The price falls out of the ratio of the reserves.</p>
+
+  <div class="f"><span class="vk">spot price of ETH</span> = <span class="fr"><span class="vy">y</span><span class="vx">x</span></span> = <span class="fr"><span>20,000</span><span>10</span></span> = 2,000 USDC
+    <small>The <span class="new" tabindex="0">spot price</span> is the price for a tiny trade right now: how much Y one unit of X is worth.</small></div>
+
+  <h3 id="what-a-swap-computes">What a swap computes</h3>
+  <p>You sell <span class="vx">Δx</span> ETH into the pool. The pool now holds <span class="vx">x + Δx</span> ETH. To keep the product at <span class="vk">k</span>, the pool's USDC must drop to <span class="vk">k</span> ÷ (<span class="vx">x + Δx</span>). Whatever it drops by is what you receive. Rearranged, that gives the output formula every AMM course shows:</p>
+  <div class="f"><span class="vy">Δy</span> = <span class="fr"><span><span class="vy">y</span> · <span class="vx">Δx</span></span><span><span class="vx">x</span> + <span class="vx">Δx</span></span></span>
+    <small>USDC out = USDC in pool × ETH you add ÷ (ETH in pool + ETH you add)</small></div>
+  <p>Now the fee. V1 charged 0.3%. The contract does not take the fee out of your output. It shrinks your input: only 99.7% of your ETH counts in the formula, but 100% of it stays in the pool. The extra 0.3% sits in the reserves and makes <span class="vk">k</span> grow a little with every trade. That growth is how LPs earn.</p>
+  <div class="f"><span class="vy">Δy</span> = <span class="fr"><span><span class="vy">y</span> · 0.997<span class="vx">Δx</span></span><span><span class="vx">x</span> + 0.997<span class="vx">Δx</span></span></span></div>
+
+  <div class="worked">
+    <header><span class="eyebrow">Worked example</span>Sell 1 ETH into the 10 ETH / 20,000 USDC pool</header>
+    <ol>
+      <li>Apply the fee to the input. <span class="calc">1 × 0.997 = 0.997 ETH counts</span></li>
+      <li>Plug into the formula. <span class="calc">Δy = 20,000 × 0.997 / (10 + 0.997) = 19,940 / 10.997 = 1,813.22 USDC</span></li>
+      <li>Compare with the spot price. At 2,000 USDC per ETH you might expect 2,000 USDC. You get 1,813.22. The 0.3% fee costs about 5 USDC. The other 182 USDC is <span class="new" tabindex="0">price impact</span>: your own trade moved the price while you traded.</li>
+      <li>New reserves: 11 ETH and 18,186.78 USDC. The new spot price is 18,186.78 / 11 = 1,653.34 USDC. Selling ETH made ETH cheaper in this pool.</li>
+      <li>New k: 11 × 18,186.78 = 200,054.6. It grew by about 55 because the fee stayed inside.</li>
+    </ol>
+  </div>
+
+  <figure class="lab" id="fig-curve">
+    <figcaption><b>The x · y = k curve</b><span class="hint">Drag the slider to sell ETH into the pool</span></figcaption>
+    <svg class="chart" id="curveSvg" viewBox="0 0 640 340" role="img" aria-label="Constant product curve with the pool's position before and after a trade"></svg>
+    <div class="controls">
+      <label for="curveDx"><span>ETH you sell <output id="curveDxOut">1.0</output></span><input type="range" id="curveDx" min="0" max="15" step="0.1" value="1"></label>
+      <label class="toggle" for="curveFee" style="align-self:end"><input type="checkbox" id="curveFee" checked> Charge the 0.3% fee</label>
+    </div>
+    <div class="readout">
+      <div><div class="k">USDC you get</div><div class="val" id="r-out">.</div></div>
+      <div><div class="k">Your average price</div><div class="val" id="r-avg">.</div></div>
+      <div><div class="k">Spot price after</div><div class="val" id="r-spot">.</div></div>
+      <div><div class="k">Price impact</div><div class="val" id="r-imp">.</div></div>
+    </div>
+  </figure>
+  <p>Play with the slider and watch two things. Small trades barely move the dot, so their average price stays near 2,000. Large trades slide far down the curve and get worse prices on every extra unit. The curve never touches the axes, so the pool can never be fully drained: buying the last USDC would need infinite ETH.</p>
+  <p>Two words that people mix up. <span class="new" tabindex="0">Price impact</span> is how much worse your average price is than the spot price, because your own trade moves the price, and you can compute it before you trade. <span class="new" tabindex="0">Slippage</span> is the difference between the quote you saw and what you got, which also includes other trades landing before yours. A swap's "max slippage" setting caps the second one.</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="eyebrow">Question 1</div>
+    <div class="q">A pool holds 50 ETH and 100,000 USDC. Someone buys ETH from it (they add USDC, they take ETH out). What happens to the spot price of ETH in this pool?</div>
+    <div class="opts"><button class="opt">It goes down, because there is more USDC</button><button class="opt">It goes up, because ETH becomes scarcer in the pool</button><button class="opt">It stays at 2,000, because k is constant</button></div>
+    <div class="why" hidden>Spot price is <span class="vy">y</span> ÷ <span class="vx">x</span>. Buying ETH raises <span class="vy">y</span> and lowers <span class="vx">x</span>, so the ratio goes up. Constant <span class="vk">k</span> fixes the product, not the ratio.</div>
+  </div>
+
+  <div class="quiz tryq" data-target="9090.91" data-tol="0.01">
+    <div class="eyebrow">Your turn: calculate it</div>
+    <div class="q">Same pool: 50 ETH and 100,000 USDC. Ignore the fee. You sell 5 ETH. How many USDC do you get?</div>
+    <div class="tryit"><input type="text" inputmode="decimal" id="try1" aria-label="Your answer in USDC" placeholder="USDC amount"><button class="btn chk">Check</button><button class="btn show">Show the steps</button></div>
+    <div class="why" hidden></div>
+    <div class="steps" hidden><p class="calc mono" style="font-size:14px">Δy = y · Δx / (x + Δx) = 100,000 × 5 / (50 + 5) = 500,000 / 55 = 9,090.91 USDC</p><p>The spot price was 2,000, so 5 ETH "should" be 10,000 USDC. Price impact cost you about 9%. Five ETH is a tenth of this pool, which is a big trade for it.</p></div>
+  </div>
+
+  <h3 id="being-an-lp-in-v1">Being an LP in V1</h3>
+  <p>When you deposit, you must add both tokens at the current ratio. In the 10 ETH / 20,000 USDC pool, adding 1 ETH means adding 2,000 USDC too. You receive <span class="new" tabindex="0">LP tokens</span>, which are receipts for your share of the pool. If you own 10% of all LP tokens, you can withdraw 10% of both reserves at any time, including 10% of all fees collected since.</p>
+  <p>V1 had one weak spot for traders. Since every pool was token/ETH, a DAI to MKR swap went DAI → ETH → MKR. That is two swaps, two fees (about 0.6% in total) and price impact in two pools.</p>
+
+  <h3 id="impermanent-loss-the-cost-of-being-an-lp">Impermanent loss, the cost of being an LP</h3>
+  <p>Here is the part LPs often learn the hard way. Say ETH goes from 2,000 to 4,000 on other exchanges. <span class="new" tabindex="0">Arbitrageurs</span> (traders who buy where it is cheap and sell where it is expensive) buy ETH from your pool until the pool price is 4,000 too. To do that, they take ETH out and put USDC in. So your pool now holds less of the thing that went up.</p>
+  <p>The result: whenever the price has moved since the deposit, an LP holds less value than someone who held the same tokens in a wallet, before counting fees. That gap is called <span class="new" tabindex="0">impermanent loss</span> (also called divergence loss). It depends only on how far the price moved from where you deposited:</p>
+  <div class="f">IL = <span class="fr"><span>2√<span class="vk">r</span></span><span>1 + <span class="vk">r</span></span></span> − 1
+    <small><span class="vk">r</span> is the price ratio: new price ÷ price when you deposited. ETH from 2,000 to 4,000 gives r = 2.</small></div>
+  <p>"Impermanent" because if the price returns to where you deposited, the loss goes back to zero. If you withdraw while the price is elsewhere, it is permanent. Fees are what is supposed to pay for it.</p>
+
+  <div class="worked">
+    <header><span class="eyebrow">Worked example</span>Where the formula comes from, with numbers</header>
+    <ol>
+      <li>You deposit 1 ETH + 2,000 USDC at a price of 2,000. Your deposit is worth 4,000 USDC.</li>
+      <li>ETH doubles to 4,000. Arbitrage pushes the pool until <span class="vy">y</span>/<span class="vx">x</span> = 4,000 while <span class="vx">x</span>·<span class="vy">y</span> stays 2,000 (your share of k). Solve: <span class="vx">x</span> = √(2,000 / 4,000) = 0.7071 ETH and <span class="vy">y</span> = 0.7071 × 4,000 = 2,828.43 USDC.<span class="calc">LP value = 0.7071 × 4,000 + 2,828.43 = 5,656.85 USDC</span></li>
+      <li>If you had held instead: <span class="calc">hold value = 1 × 4,000 + 2,000 = 6,000 USDC</span></li>
+      <li>Loss vs holding: <span class="calc">5,656.85 / 6,000 − 1 = −5.72%</span> The formula agrees: 2√2 / 3 − 1 = 2.8284 / 3 − 1 = −5.72%.</li>
+    </ol>
+  </div>
+
+  <figure class="lab" id="fig-il">
+    <figcaption><b>Impermanent loss vs price change</b><span class="hint">Drag the slider or move across the chart</span></figcaption>
+    <svg class="chart" id="ilSvg" viewBox="0 0 640 300" role="img" aria-label="Impermanent loss curve"></svg>
+    <div class="controls">
+      <label for="ilR"><span>Price ratio r (new ÷ old) <output id="ilROut">2.00</output></span><input type="range" id="ilR" min="0.1" max="5" step="0.01" value="2"></label>
+    </div>
+    <div class="readout">
+      <div><div class="k">Impermanent loss</div><div class="val" id="il-loss">.</div></div>
+      <div><div class="k">$10,000 held in a wallet</div><div class="val" id="il-hold">.</div></div>
+      <div><div class="k">$10,000 as V1/V2 LP</div><div class="val" id="il-lp">.</div></div>
+    </div>
+  </figure>
+
+  <div class="quiz" data-answer="2">
+    <div class="eyebrow">Question 2</div>
+    <div class="q">You LP in ETH/USDC. Scenario A: ETH doubles. Scenario B: ETH halves. In which one is the impermanent loss bigger?</div>
+    <div class="opts"><button class="opt">A, ETH doubling</button><button class="opt">B, ETH halving</button><button class="opt">They are the same</button></div>
+    <div class="why" hidden>r = 2 gives 2√2/3 − 1 = −5.72%. r = 0.5 gives 2√0.5/1.5 − 1 = −5.72%. The curve treats "2× up" and "2× down" as the same distance. The dollar values differ, but the percentage gap to holding is equal.</div>
+  </div>
+</section>
+
+<!-- ============================ V2 ============================ -->
+<section class="chapter" id="v2">
+  <div class="chapter-head">
+    <div class="big">V2</div>
+    <div class="eyebrow">May 2020 · Solidity · any ERC-20 pair</div>
+    <h2>Same curve, better plumbing</h2>
+  </div>
+  <p>V2 keeps <span class="vx">x</span>·<span class="vy">y</span> = <span class="vk">k</span> and the 0.3% fee exactly. The swap math from the V1 chapter still applies. What changed is around the curve: which tokens can pair, how other protocols can read the price, and how tokens move during a swap.</p>
+
+  <h3 id="any-token-with-any-token">1. Any token with any token</h3>
+  <p>A pool can now hold DAI/MKR directly, so the DAI to MKR route no longer has to pay two fees. ETH itself is not an ERC-20, so V2 pools use <span class="new" tabindex="0">WETH</span> (wrapped ETH, an ERC-20 that is 1:1 backed by ETH). The <span class="new" tabindex="0">router</span> contract wraps and unwraps for you and chains pools together for multi-hop routes.</p>
+
+  <h3 id="a-price-oracle-that-is-hard-to-fake">2. A price oracle that is hard to fake</h3>
+  <p>An <span class="new" tabindex="0">oracle</span> is a source of prices for other contracts, such as a lending protocol that needs to know what your collateral is worth. The spot price from the previous chapter is a bad oracle. Anyone with a flash loan can push it far for one transaction, let a lending protocol read the fake price, and then push it back. Many 2020 hacks did exactly this.</p>
+  <p>V2's answer is a <span class="new" tabindex="0">TWAP</span>, a time-weighted average price. The pool keeps a running total, the <span class="new" tabindex="0">price accumulator</span>. At the first interaction in each block, before any trade, it adds "price × seconds since the last update":</p>
+  <div class="f"><span class="vk">a</span> ← <span class="vk">a</span> + <span class="vk">P</span> · <span class="vk">Δt</span>
+    <small>The arrow means "becomes". The accumulator a grows by the current price P times the seconds Δt that price was in force.</small></div>
+  <p>A contract that wants the average price over the last hour reads the accumulator now and one hour ago, then divides:</p>
+  <div class="f"><span class="vk">TWAP</span> = <span class="fr"><span><span class="vk">a</span><sub>now</sub> − <span class="vk">a</span><sub>then</sub></span><span><span class="vk">t</span><sub>now</sub> − <span class="vk">t</span><sub>then</sub></span></span></div>
+
+  <div class="worked">
+    <header><span class="eyebrow">Worked example</span>Reading a TWAP</header>
+    <ol>
+      <li>At t = 0 the accumulator reads 0. The price is 2,000 for 10 seconds. <span class="calc">a = 0 + 2,000 × 10 = 20,000</span></li>
+      <li>The price is then 2,100 for 20 seconds. <span class="calc">a = 20,000 + 2,100 × 20 = 62,000</span></li>
+      <li>TWAP over those 30 seconds: <span class="calc">(62,000 − 0) / (30 − 0) = 2,066.67</span> The price that lasted twice as long counts twice as much.</li>
+    </ol>
+  </div>
+
+  <figure class="lab" id="fig-twap">
+    <figcaption><b>Why one bad block barely moves a TWAP</b><span class="hint">30 blocks of 12 seconds each</span></figcaption>
+    <svg class="chart" id="twapSvg" viewBox="0 0 640 280" role="img" aria-label="Spot price and 30-block TWAP"></svg>
+    <div class="controls" style="grid-template-columns:auto 1fr;align-items:center">
+      <button class="btn" id="twapBtn" type="button">Manipulate block 22 to 3,000</button>
+      <div class="legend"><span><i style="background:var(--x)"></i>Spot price each block</span><span><i style="background:var(--L)"></i>30-block TWAP</span></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Spot price in block 22</div><div class="val" id="tw-spot">.</div></div>
+      <div><div class="k">30-block TWAP</div><div class="val" id="tw-avg">.</div></div>
+      <div><div class="k">TWAP moved by</div><div class="val" id="tw-move">.</div></div>
+    </div>
+  </figure>
+  <p>The spike is 1,000 USDC (50%), yet the 30-block TWAP moves by only about 33 (1,000 ÷ 30). To move the TWAP by 50% the attacker must hold the fake price for the whole window. Every block they hold it, arbitrageurs trade against them and take their money. That makes the attack expensive instead of free.</p>
+  <div class="audit">The accumulator is updated before the first trade of a block, using the price at the end of the previous block. So a manipulation inside one transaction never enters the accumulator. The attacker must hold the price across at least one block boundary. Short TWAP windows are still cheap to move, especially on low-liquidity pools.</div>
+
+  <h3 id="flash-swaps">3. Flash swaps</h3>
+  <p>In V2 the pair sends you the output tokens first, optionally calls your contract, and only then checks that it got paid. The check is the curve itself, run on the pool's real token balances after your callback:</p>
+  <div class="f">(<span class="vx">x</span>′ − 0.003 · <span class="vx">in</span>) · <span class="vy">y</span>′ ≥ <span class="vx">x</span> · <span class="vy">y</span>
+    <small>x′ and y′ (read "x prime", "y prime") are the balances after the trade. The left side removes the fee from what came in. If the new product is not at least the old k, the whole transaction reverts. (The contract does this for both tokens, scaled by 1000 to avoid decimals.)</small></div>
+  <p>Because only the end state is checked, you can borrow tokens from the pool with nothing up front, use them for an arbitrage, and repay in the same transaction. That is a <span class="new" tabindex="0">flash swap</span>. If you cannot repay, everything reverts as if it never happened.</p>
+
+  <h3 id="small-details-that-matter">4. Small details that matter</h3>
+  <p>The first LP in a pool receives √(<span class="vx">x</span>·<span class="vy">y</span>) LP tokens, minus 1,000 units that are locked forever (<code>MINIMUM_LIQUIDITY</code>). The square root makes the value of one LP share independent of the price at which the first LP deposited. The locked 1,000 units make it about 1,000 times more expensive for an attacker to inflate the value of one LP share until later depositors lose their deposit to rounding.</p>
+  <p>There is also a <span class="new" tabindex="0">protocol fee</span> switch. Governance turned it on for Ethereum mainnet in December 2025: 1/6 of the 0.3% (so 0.05% of volume) goes to the protocol and 0.25% to LPs.</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="eyebrow">Question 3</div>
+    <div class="q">An attacker uses a flash loan to push a V2 pool's price from 2,000 to 6,000 and back inside one transaction. What does the pool's 1-hour TWAP show?</div>
+    <div class="opts"><button class="opt">No change, the fake price never crossed a block boundary</button><button class="opt">Around 6,000, because the accumulator saw the spike</button><button class="opt">Around 4,000, the midpoint of the two prices</button></div>
+    <div class="why" hidden>The accumulator only adds the price that was in force between blocks. A price that exists for part of one transaction lasts zero seconds from the accumulator's point of view.</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="eyebrow">Question 4</div>
+    <div class="q">Why can a V2 pair safely send you tokens before you pay?</div>
+    <div class="opts"><button class="opt">It trusts the router contract</button><button class="opt">It checks x′ · y′ ≥ k on its real balances at the end, and reverts the whole transaction if that fails</button><button class="opt">It holds your LP tokens as collateral</button></div>
+    <div class="why" hidden>The invariant check at the end protects the pool. In a reverted transaction the tokens never left.</div>
+  </div>
+</section>
+
+<!-- ============================ V3 ============================ -->
+<section class="chapter" id="v3">
+  <div class="chapter-head">
+    <div class="big">V3</div>
+    <div class="eyebrow">May 2021 · concentrated liquidity · ticks</div>
+    <h2>Put your money where the price is</h2>
+  </div>
+  <p>Look again at the V1 curve. It runs from a price near zero to a price near infinity, and a V2 LP's money is spread across all of it. If ETH trades between 1,500 and 3,000 for a year, the part of your deposit reserved for ETH at 50 USDC or 500,000 USDC does nothing. It earns no fees.</p>
+  <p>V3 lets each LP pick a price <span class="new" tabindex="0">range</span>, written [<span class="vk">p</span><sub>a</sub>, <span class="vk">p</span><sub>b</sub>] (lower price, upper price). Your money only works while the price is inside your range, and in exchange it works much harder. This is <span class="new" tabindex="0">concentrated liquidity</span>.</p>
+
+  <h3 id="a-new-main-character-liquidity-l">A new main character: liquidity L</h3>
+  <p>In V2 the natural measure of a pool was <span class="vk">k</span>. V3 uses its square root instead:</p>
+  <div class="f"><span class="vL">L</span> = √(<span class="vx">x</span> · <span class="vy">y</span>) &nbsp;&nbsp;and&nbsp;&nbsp; √<span class="vk">P</span> = √(<span class="vy">y</span> / <span class="vx">x</span>)</div>
+  <div class="symbols">
+    <div class="eyebrow">Symbols in play</div>
+    <dl>
+      <dt><span class="vL">L</span></dt><dd><span class="new" tabindex="0">Liquidity</span>. How deep the pool is around the current price. Bigger L means a trade of the same size moves the price less.</dd>
+      <dt><span class="vk">P</span></dt><dd>Price of X in units of Y, the same y/x as before.</dd>
+      <dt>√<span class="vk">P</span></dt><dd>The square root of the price. V3 stores this instead of P. At P = 2,000, √P = 44.72.</dd>
+      <dt><span class="vk">p</span><sub>a</sub>, <span class="vk">p</span><sub>b</sub></dt><dd>Lower and upper price of an LP's range. The position only works between these two prices.</dd>
+    </dl>
+  </div>
+  <p>Why the square roots? Because with them, swap math turns into multiplication. When the price moves within a range where L is constant:</p>
+  <div class="f"><span class="vy">Δy</span> = <span class="vL">L</span> · Δ√<span class="vk">P</span> &nbsp;&nbsp;&nbsp;&nbsp; <span class="vx">Δx</span> = <span class="vL">L</span> · Δ<span class="fr"><span>1</span><span>√<span class="vk">P</span></span></span>
+    <small>USDC that moves = liquidity × how far √price moved. ETH that moves = liquidity × how far 1/√price moved.</small></div>
+  <div class="plain">Think of L as the slope of a straight line. If L = 400, every step of 1 in √P costs exactly 400 USDC. No curve to solve, no division by a sum. That is why the swap math works on √P and L instead of on reserves.</div>
+
+  <h3 id="real-reserves-for-a-range">Real reserves for a range</h3>
+  <p>An LP in range [<span class="vk">p</span><sub>a</sub>, <span class="vk">p</span><sub>b</sub>] only needs enough tokens to cover price moves inside that range. Starting from the current price P, the price can fall to p<sub>a</sub> (the pool would hand out USDC and collect ETH) or rise to p<sub>b</sub> (it would hand out ETH). So the position holds exactly that much of each:</p>
+  <div class="f"><span class="vx">x</span> = <span class="vL">L</span> · ( <span class="fr"><span>1</span><span>√<span class="vk">P</span></span></span> − <span class="fr"><span>1</span><span>√<span class="vk">p</span><sub>b</sub></span></span> ) &nbsp;&nbsp;&nbsp; <span class="vy">y</span> = <span class="vL">L</span> · ( √<span class="vk">P</span> − √<span class="vk">p</span><sub>a</sub> )</div>
+  <p>These are the <span class="new" tabindex="0">real reserves</span>: the tokens you deposit. The pool behaves as if it held much more, the <span class="new" tabindex="0">virtual reserves</span> <span class="vL">L</span>/√P and <span class="vL">L</span>·√P that a V2 pool with the same L would need. The gap between the two is the efficiency gain.</p>
+
+  <div class="worked">
+    <header><span class="eyebrow">Worked example</span>Deposit 1 ETH into an ETH/USDC range of 1,600 to 2,500 while ETH is 2,000</header>
+    <ol>
+      <li>Square roots first. <span class="calc">√2,000 = 44.7214   √1,600 = 40   √2,500 = 50</span></li>
+      <li>Find L from the ETH side. <span class="calc">1 = L × (1/44.7214 − 1/50) = L × (0.022361 − 0.020000) = L × 0.0023607  →  L = 423.61</span></li>
+      <li>The USDC you must add with it. <span class="calc">y = 423.61 × (44.7214 − 40) = 423.61 × 4.7214 = 2,000 USDC</span> Total deposit: 1 ETH + 2,000 USDC, worth 4,000 USDC.</li>
+      <li>What a V2 LP needs for the same L = 423.61: <span class="calc">x = L/√P = 9.472 ETH,  y = L·√P = 18,944 USDC,  worth 37,889 USDC</span></li>
+      <li>Same depth around 2,000 for 4,000 instead of 37,889 USDC. That is <span class="new" tabindex="0">capital efficiency</span> of 37,889 ÷ 4,000 ≈ 9.5×. Put the other way: with equal money you earn about 9.5× the fees of a V2 LP while the price stays in range.</li>
+    </ol>
+  </div>
+  <p>The 50/50 split above is not a coincidence. 2,000 is the geometric middle of 1,600 and 2,500 (1,600 × 2,500 = 2,000²). A range centered that way always starts half in each token. Move the current price toward the top of the range and the position holds more USDC; toward the bottom and it holds more ETH.</p>
+
+  <figure class="lab" id="fig-range">
+    <figcaption><b>Range explorer</b><span class="hint">Set your range and the market price</span></figcaption>
+    <svg class="chart" id="rangeSvg" viewBox="0 0 640 300" role="img" aria-label="Liquidity of a V3 range compared with V2 for the same money"></svg>
+    <div class="legend" style="margin-top:4px"><span><i style="background:var(--L)"></i>V3 liquidity for your money</span><span><i style="background:var(--muted)"></i>V2 liquidity for the same money</span></div>
+    <div class="controls">
+      <label for="rgA"><span>Lower price p<sub>a</sub> <output id="rgAOut"></output></span><input type="range" id="rgA" min="500" max="4900" step="50" value="1600"></label>
+      <label for="rgB"><span>Upper price p<sub>b</sub> <output id="rgBOut"></output></span><input type="range" id="rgB" min="600" max="5000" step="50" value="2500"></label>
+      <label for="rgP"><span>ETH market price P <output id="rgPOut"></output></span><input type="range" id="rgP" min="500" max="5000" step="10" value="2000"></label>
+    </div>
+    <div class="readout">
+      <div><div class="k">Status</div><div class="val" id="rg-status">.</div></div>
+      <div><div class="k">Capital efficiency vs V2</div><div class="val" id="rg-eff">.</div></div>
+    </div>
+    <div style="margin-top:12px;font-family:var(--display);font-size:13px;color:var(--muted)">What your position holds right now, by value</div>
+    <div class="stack" id="rg-stack"><div id="rg-sx" style="background:var(--x)"></div><div id="rg-sy" style="background:var(--y)"></div></div>
+  </figure>
+  <p>Drag the market price above the upper price of your range. The position is 100% USDC: as ETH rose through your range, buyers took all your ETH. Drag it below the lower price and you hold 100% ETH. Out of range you earn nothing, and the position is the "losing" side of the move. That is impermanent loss with the multiplier turned up. A tight range earns more fees and loses more to price moves.</p>
+  <p>The same mechanism gives you <span class="new" tabindex="0">range orders</span>. A thin range just above the current price, funded only with ETH, sells your ETH as the price crosses it, like a limit order that also earns the fee.</p>
+
+  <div class="check">
+    <div class="eyebrow"><b>Security check</b><span>V3 and V4 integrations</span></div>
+    <ul>
+      <li><div class="item"><input type="checkbox" aria-label="Mark this check as done"><div><div class="ask">If one-sided or uneven deposits are possible, can the pool be used for a free swap?</div>
+        <p>A vault that sits on top of a range might accept only ETH and pay out shares of a position that holds ETH and USDC. If a user can deposit one token and withdraw both at the position's current mix, they have swapped without paying the fee or the price impact. The vault's other depositors pay for it. Check how deposits are converted into the position's ratio and who pays for that conversion.</p></div></div></li>
+    </ul>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="eyebrow">Question 5</div>
+    <div class="q">Your ETH/USDC range is 1,800 to 2,200. ETH rises to 2,600 and stays there. What do you hold, and what do you earn?</div>
+    <div class="opts"><button class="opt">Mostly ETH, and full fees</button><button class="opt">A 50/50 mix, and half the fees</button><button class="opt">Only USDC, and no fees until the price comes back into range</button></div>
+    <div class="why" hidden>Above the upper price of the range, all of your ETH was sold to buyers on the way up. Your liquidity is not "active", so swaps at 2,600 do not touch it and pay it nothing.</div>
+  </div>
+
+  <h3 id="ticks-how-ranges-are-stored">Ticks: how ranges are stored</h3>
+  <p>An LP cannot pick just any price as the lower or upper price of a range. The contract only allows prices on a fixed grid of steps called <span class="new" tabindex="0">ticks</span>. Tick number <span class="vk">i</span> stands for the price:</p>
+  <div class="f"><span class="vk">P</span>(<span class="vk">i</span>) = 1.0001<sup><span class="vk">i</span></sup>
+    <small>Each tick is 0.01% (one <span class="new" tabindex="0">basis point</span>) above the one before it. Tick 0 is price 1. Negative ticks are prices below 1.</small></div>
+  <p>The power ("to the i") means "multiply 1.0001 by itself i times". To go from a price back to a tick you use a logarithm, which is the undo button for powers:</p>
+  <div class="f"><span class="vk">i</span> = floor( <span class="fr"><span>log(<span class="vk">P</span>)</span><span>log(1.0001)</span></span> )
+    <small>floor means "round down to a whole number".</small></div>
+
+  <div class="worked">
+    <header><span class="eyebrow">Worked example</span>Which tick is a price of 2,000?</header>
+    <ol>
+      <li>Take the log of both numbers. These are natural logs (the ln key on a calculator), but any log works as long as top and bottom use the same one. log(1.0001) is tiny because 1.0001 is barely above 1, and log(1) = 0. <span class="calc">log(2,000) = 7.6009     log(1.0001) = 0.000099995</span></li>
+      <li>Divide. <span class="calc">7.6009 / 0.000099995 = 76,012.8</span></li>
+      <li>Round down: tick 76,012. Check: 1.0001<sup>76,012</sup> ≈ 1,999.84, and the next tick up is ≈ 2,000.04. The real price sits between them.</li>
+      <li>Not every tick can be used. Each pool has a <span class="new" tabindex="0">tick spacing</span>, and a range must start and end on a tick that is a multiple of it. A 0.3% pool uses spacing 60, so the nearest usable tick below 76,012 is 75,960.</li>
+    </ol>
+  </div>
+
+  <p>Why do higher fees come with wider tick spacing? Every initialized tick a swap crosses costs extra gas, because the pool has to update its active liquidity there. Low-fee pools (0.01%, 0.05%) are meant for pairs whose price barely moves, such as two stablecoins. LPs there need fine steps to place tight ranges, and swaps rarely cross many ticks. High-fee pools (0.3%, 1%) are for volatile pairs. Their price moves through many ticks, so wider spacing keeps swaps cheap, and LPs there use wide ranges anyway. On Ethereum, V3 offers these four pairs of fee and spacing, and only governance can add a new one. It launched with three; governance added 0.01% in November 2021. V4 lets each pool choose any fee and spacing.</p>
+
+  <figure class="lab" id="fig-tick">
+    <figcaption><b>Tick calculator</b><span class="hint">Type any price</span></figcaption>
+    <div class="controls" style="margin-top:0">
+      <label for="tkP"><span>Price (token1 per token0)</span><input class="dictfilter" type="text" inputmode="decimal" id="tkP" value="2000"></label>
+      <label for="tkS"><span>Tick spacing</span><select class="dictfilter" id="tkS"><option value="1">1 (0.01% fee)</option><option value="10">10 (0.05% fee)</option><option value="60" selected>60 (0.3% fee)</option><option value="200">200 (1% fee)</option></select></label>
+    </div>
+    <div class="readout">
+      <div><div class="k">Tick</div><div class="val" id="tk-i">.</div></div>
+      <div><div class="k">Price at that tick</div><div class="val" id="tk-p">.</div></div>
+      <div><div class="k">Nearest usable tick below</div><div class="val" id="tk-u">.</div></div>
+      <div><div class="k">sqrtPriceX96</div><div class="val" id="tk-q" style="font-size:13px;overflow-wrap:anywhere">.</div></div>
+    </div>
+  </figure>
+  <p>The last box is how the contract stores √P: as <code>sqrtPriceX96</code>, which is √P × 2<sup>96</sup> as an integer. Solidity has no decimals, so the contract multiplies by a huge fixed number to keep precision. This format is called <span class="new" tabindex="0">Q64.96</span>: 64 bits for the whole part, 96 bits for the fraction.</p>
+  <div class="audit">On-chain, P is the raw ratio of token1 units to token0 units, decimals included. In the real USDC/WETH pool, token0 is USDC (6 decimals) and token1 is WETH (18 decimals), so the stored price is WETH-wei per USDC-unit. At an ETH price of 2,000 that is 5 × 10⁸, which is tick 200,311, not 76,012. Many integration bugs come from getting the token order or the decimals wrong.</div>
+
+  <div class="check">
+    <div class="eyebrow"><b>Security check</b><span>V3 and V4</span></div>
+    <ul>
+      <li><div class="item"><input type="checkbox" aria-label="Mark this check as done"><div><div class="ask">Are the min and max ticks always multiples of the tick spacing?</div>
+        <p>The tick range itself runs from −887,272 to 887,272, and those numbers are not multiples of 60 or 200. Code that uses them as a "full range" position reverts. Round them toward zero to the spacing first, for example <code>(MAX_TICK / spacing) * spacing</code>. The same applies to any lower or upper tick computed from a price.</p></div></div></li>
+    </ul>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="eyebrow">Question 6</div>
+    <div class="q">About what price does tick 6,932 stand for? (Hint: 1.0001<sup>6,932</sup>.)</div>
+    <div class="opts"><button class="opt">About 1.07</button><button class="opt">About 2</button><button class="opt">About 6,932</button></div>
+    <div class="why" hidden>1.0001<sup>6,932</sup> = 2.00004. A useful rule: every 6,932 ticks doubles the price, and every 23,027 ticks multiplies it by 10.</div>
+  </div>
+
+  <h3 id="a-swap-that-crosses-ticks">A swap that crosses ticks</h3>
+  <p>The pool keeps one number for the active liquidity L right now. Each tick where some LP's range starts or ends stores <code>liquidityNet</code>: how much L to add or remove when the price crosses it. A swap runs in a loop:</p>
+  <ol>
+    <li>Find the next initialized tick in the direction of the swap.</li>
+    <li>With the current L, compute how much input moves √P to that tick (Δy = L · Δ√P).</li>
+    <li>If the trade has that much input left, move there, add or subtract that tick's <code>liquidityNet</code> from L, and repeat.</li>
+    <li>If not, move √P only part of the way and stop.</li>
+  </ol>
+  <p>Each tick can be referenced by only so much liquidity, <code>maxLiquidityPerTick</code>. It is set from the tick spacing so that L summed over every usable tick still fits in a <code>uint128</code>. A mint that would push a tick past it reverts.</p>
+
+  <div class="worked">
+    <header><span class="eyebrow">Worked example</span>Buy ETH with 1,000 USDC, inside the range from the earlier example (L = 423.61, no fee)</header>
+    <ol>
+      <li>How far does √P move? <span class="calc">Δ√P = Δy / L = 1,000 / 423.61 = 2.3607</span></li>
+      <li>New √P and price. <span class="calc">√P = 44.7214 + 2.3607 = 47.0820   →   P = 47.0820² = 2,216.72</span> 2,216.72 is below 2,500, the top of the range, so no tick is crossed.</li>
+      <li>ETH out. <span class="calc">Δx = L × (1/44.7214 − 1/47.0820) = 423.61 × 0.0011212 = 0.4749 ETH</span></li>
+      <li>Average price paid: 1,000 / 0.47493 = 2,105.57 USDC. In a V2 pool with only 4,000 USDC of capital this trade would cost far more. Concentrated liquidity makes small capital feel deep.</li>
+    </ol>
+  </div>
+
+  <p>How does the pool get paid? Like V2's flash swaps, a V3 pool sends a swap's output first and then calls a <span class="new" tabindex="0">callback</span> on the contract that started it (<code>uniswapV3SwapCallback</code>). For a mint there is no output; the pool calls <code>uniswapV3MintCallback</code> to collect the tokens. Inside the callback, your contract transfers what it owes. Afterwards the pool checks its balances and reverts if it was not paid.</p>
+
+  <div class="check">
+    <div class="eyebrow"><b>Security check</b><span>V3 and V4</span></div>
+    <ul>
+      <li><div class="item"><input type="checkbox" aria-label="Mark this check as done"><div><div class="ask">Is the callback secure, callable only by the allowed pool?</div>
+        <p>The callback is a public function that sends tokens. If it does not check <code>msg.sender</code>, anyone can call it directly and ask your contract to pay them. In V3, verify the caller is the pool computed from the factory, token pair and fee, not just "any address that claims to be a pool". In V4 the callback is <code>unlockCallback</code>, and only the PoolManager may call it.</p></div></div></li>
+    </ul>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="eyebrow">Find the bug 1</div>
+    <div class="q">This router pays V3 pools during swaps. Users approve the router to spend their tokens. What is wrong?</div>
+<pre>function uniswapV3SwapCallback(
+    int256 amount0Delta, int256 amount1Delta, bytes calldata data
+) external {
+    (address tokenIn, address payer) = abi.decode(data, (address, address));
+    uint256 owed = uint256(amount0Delta &gt; 0 ? amount0Delta : amount1Delta);
+    IERC20(tokenIn).transferFrom(payer, msg.sender, owed);
+}</pre>
+    <div class="opts"><button class="opt">The sign check is reversed, so it pays the wrong token amount</button><button class="opt">Nothing checks that msg.sender is a real pool, so anyone can call it</button><button class="opt">transferFrom should be transfer, so the payer's approval is never used</button></div>
+    <div class="why" hidden>An attacker calls the callback directly with <code>data</code> naming a victim as payer and <code>msg.sender</code> being their own contract. The router pulls the victim's approved tokens and sends them to the attacker. The fix is to recompute the pool address from the factory, token pair and fee, and require <code>msg.sender</code> to equal it. The sign check is correct: a positive delta is what the pool is owed.</div>
+  </div>
+
+  <h3 id="fees-in-v3">Fees in V3</h3>
+  <p>Pools come in <span class="new" tabindex="0">fee tiers</span>: 0.01%, 0.05%, 0.3% and 1%. Stable pairs pick low fees, volatile pairs high. The contract writes fees in hundredths of a basis point, called <span class="new" tabindex="0">pips</span>: <code>fee = 3000</code> means 0.3%. Fees are no longer added to the reserves. Each pool tracks "fees earned per unit of L" globally and per tick, and a position's share is computed from the difference when you collect. That is why the V3 position manager issues each position as an NFT: every position has its own range, so the shares are not interchangeable like V2 LP tokens.</p>
+  <p>The V3 oracle also changed. It accumulates the tick instead of the price. Since a tick is a log of the price, averaging ticks gives a <span class="new" tabindex="0">geometric mean</span> price, so the average price of ETH in USDC is exactly the inverse of the average price of USDC in ETH. V2 needed two accumulators for that; V3 needs one. A geometric mean also damps a spike up, but a crash toward zero pulls it down hard.</p>
+</section>
+
+<!-- ============================ V4 ============================ -->
+<section class="chapter" id="v4">
+  <div class="chapter-head">
+    <div class="big">V4</div>
+    <div class="eyebrow">January 2025 · singleton · hooks · flash accounting</div>
+    <h2>Same math, new machine around it</h2>
+  </div>
+  <p>V4 pools use the V3 curve unchanged. L, √P, ticks, ranges and the swap loop all carry over. What V4 changes is where pools live, how tokens move, and who can add logic.</p>
+
+  <h3 id="the-singleton">1. The singleton</h3>
+  <p>In V2 and V3 every pool is its own contract, deployed by a factory. In V4 all pools live inside one contract, the <span class="new" tabindex="0">PoolManager</span>. This design is called a <span class="new" tabindex="0">singleton</span>. Creating a pool is a storage write instead of a contract deployment, so it is much cheaper. A pool is identified by its <span class="new" tabindex="0">PoolKey</span>:</p>
+  <div class="f" style="font-family:var(--mono);font-size:15px;text-align:left">PoolKey { currency0, currency1, fee, tickSpacing, hooks }
+    <small style="font-family:var(--body)">The PoolId is the hash of these five fields. Change any one of them, for example the hook address, and you have a different pool.</small></div>
+  <p>Fees and tick spacing are no longer limited to a fixed list, and native ETH works again (no WETH needed), as in V1.</p>
+
+  <h3 id="flash-accounting">2. Flash accounting</h3>
+  <p>Since all pools share one contract, the PoolManager can wait until the end to move tokens. You call <code>unlock()</code>, the PoolManager calls back into your contract, and inside that callback you can swap, add liquidity and remove liquidity as many times as you like. Each action only updates a running tally per token, called a <span class="new" tabindex="0">delta</span>. When your callback returns, every delta must be zero, or the whole transaction reverts.</p>
+  <div class="symbols">
+    <div class="eyebrow">Sign convention for deltas (from your side)</div>
+    <dl>
+      <dt style="color:var(--bad)">−</dt><dd>You owe the PoolManager this much. Pay it with <code>settle()</code>.</dd>
+      <dt style="color:var(--good)">+</dt><dd>The PoolManager owes you this much. Withdraw it with <code>take()</code>, or keep it inside as an ERC-6909 claim token.</dd>
+    </dl>
+  </div>
+
+  <figure class="lab" id="fig-delta">
+    <figcaption><b>A two-hop swap, ETH → USDC → DAI</b><span class="hint">Step through it</span></figcaption>
+    <div class="tablewrap" style="margin:6px 0 0">
+      <table style="min-width:420px">
+        <thead><tr><th>Step</th><th style="text-align:right">ETH</th><th style="text-align:right">USDC</th><th style="text-align:right">DAI</th><th style="text-align:right">Token transfers</th></tr></thead>
+        <tbody id="ledger"></tbody>
+      </table>
+    </div>
+    <p id="ledgerNote" style="font-size:15px;margin:12px 0 0"></p>
+    <div class="controls" style="grid-template-columns:auto auto 1fr;align-items:center">
+      <button class="btn" id="ldBack" type="button">Back</button><button class="btn" id="ldNext" type="button">Next step</button>
+    </div>
+  </figure>
+  <p>The USDC never moves. In V3 the same route sends USDC out of pool 1 and into pool 2, because they are separate contracts with separate balances. Fewer transfers means less gas, and it makes long routes nearly as cheap as single swaps.</p>
+  <p>Flash accounting needs a cheap scratchpad that is wiped after each transaction. V4 uses <span class="new" tabindex="0">transient storage</span> (EIP-1153, the <code>TSTORE</code>/<code>TLOAD</code> opcodes), which costs far less than normal storage and resets to zero when the transaction ends.</p>
+
+  <div class="check">
+    <div class="eyebrow"><b>Security check</b><span>V4 hooks</span></div>
+    <ul>
+      <li><div class="item"><input type="checkbox" aria-label="Mark this check as done"><div><div class="ask">Does the hook make decisions from pool state that can be faked inside an <code>unlock</code>?</div>
+        <p>Inside an <code>unlock</code>, the PoolManager only demands that every debt is repaid at the end. Until then, prices and balances can be whatever the caller wants.</p>
+        <details><summary>Details</summary><dl>
+          <dt>What</dt><dd>A caller can borrow tokens from the PoolManager with <code>take()</code> without putting up capital, push the pool price around, add or remove liquidity, trigger the hook, and repay everything before <code>unlock</code> returns. A hook that reads the current price, liquidity or a balance at that moment reads numbers the caller chose.</dd>
+          <dt>Check</dt><dd>Find every place the hook reads <code>slot0</code>, the pool's liquidity, a PoolManager balance or a token balance, and uses it to allow an action or to price something.</dd>
+          <dt>Fix</dt><dd>Price from a TWAP or from a value stored before the unlock started. In the hook's own external functions, refuse to read pool state while an unlock is in progress.</dd>
+        </dl></details></div></div></li>
+    </ul>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="eyebrow">Question 7</div>
+    <div class="q">Inside an unlock callback you swap 1 ETH for 2,000 USDC, then return without calling settle or take. What happens?</div>
+    <div class="opts"><button class="opt">The transaction reverts, because deltas are not zero</button><button class="opt">The USDC stays in the PoolManager for you to take later</button><button class="opt">The PoolManager pulls 1 ETH from your wallet automatically</button></div>
+    <div class="why" hidden>At the end of <code>unlock()</code> the PoolManager checks that no currency has an open delta. If any is non-zero it reverts with <code>CurrencyNotSettled</code>. To leave value inside, you must explicitly mint ERC-6909 claims, which itself zeroes the delta.</div>
+  </div>
+
+  <h3 id="hooks">3. Hooks</h3>
+  <p>A <span class="new" tabindex="0">hook</span> is an external contract that the PoolManager calls at fixed points in a pool's life. Each pool picks one hook address when it is created, and it cannot change later. The hook can run before or after initialize, add liquidity, remove liquidity, swap and donate. With that you can build dynamic fees, on-chain limit orders, TWAMMs (orders split over time), oracles, KYC gates, or LP rewards, without forking Uniswap.</p>
+  <p>The clever part is how the PoolManager knows which functions to call. It reads them from the hook's address. The lowest 14 bits of the address are on/off switches. If bit 7 is 1, call <code>beforeSwap</code>. If it is 0, skip it. Hook developers mine a CREATE2 salt until the deployed address has the right bits.</p>
+
+  <figure class="lab" id="fig-hooks">
+    <figcaption><b>Hook permissions live in the address</b><span class="hint">Tick the hooks you want</span></figcaption>
+    <div class="flags" id="flags"></div>
+    <div class="addr" id="hookAddr"></div>
+    <div style="font-size:13px;color:var(--muted);font-family:var(--display);margin-top:6px" id="hookBin"></div>
+  </figure>
+
+  <div class="check">
+    <div class="eyebrow"><b>Security check</b><span>V4 hooks</span></div>
+    <ul>
+      <li><div class="item"><input type="checkbox" aria-label="Mark this check as done"><div><div class="ask">Is <code>validateHookPermissions</code> called with the right permissions?</div>
+        <p>The address bits decide which functions the PoolManager calls. If the code expects <code>beforeSwap</code> to run but the deployed address does not have bit 7 set, the hook silently never runs. Calling <code>Hooks.validateHookPermissions</code> in the constructor (<code>BaseHook</code> does this) makes deployment fail when the bits and the intended permissions differ. Check that the permissions passed in match the functions the hook actually implements.</p></div></div></li>
+      <li><div class="item"><input type="checkbox" aria-label="Mark this check as done"><div><div class="ask">Do the hook functions accept calls only from the PoolManager, and check the <code>sender</code> parameter where it matters?</div>
+        <p>Hook functions are public. Without an <code>onlyPoolManager</code> check, anyone can call <code>afterSwap</code> directly and trigger rewards, accounting updates or payouts. Separately, the <code>sender</code> argument is the contract that called the PoolManager, usually a router, not the user. If the hook gates or credits by <code>sender</code>, check that it is a trusted router and that the real user is identified correctly.</p></div></div></li>
+    </ul>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="eyebrow">Find the bug 2</div>
+    <div class="q">This hook gives traders reward points for every swap. Its address has the afterSwap bit set, and the permissions were validated. What is wrong?</div>
+<pre>function afterSwap(
+    address, PoolKey calldata, SwapParams calldata,
+    BalanceDelta, bytes calldata hookData
+) external returns (bytes4, int128) {
+    address user = abi.decode(hookData, (address));
+    rewards[user] += REWARD_PER_SWAP;
+    return (this.afterSwap.selector, 0);
+}</pre>
+    <div class="opts"><button class="opt">It returns the wrong selector, so every swap through the pool reverts</button><button class="opt">Rewards must be given in beforeSwap, or a swap can be counted twice</button><button class="opt">No onlyPoolManager check, so anyone can call it without swapping</button></div>
+    <div class="why" hidden>Hook functions are ordinary external functions. Without <code>onlyPoolManager</code> (which <code>BaseHook</code> provides), nobody needs to swap to call them. There is a second thing to check: <code>user</code> comes from <code>hookData</code>, which the caller chooses, so even through real swaps someone could credit any address. The selector and the choice of afterSwap are fine.</div>
+  </div>
+
+  <p>Four of the flags are "returns delta" flags. With them a hook can change the amounts in a swap or a liquidity action, by taking a cut or by doing the whole swap itself. A hook with <code>beforeSwapReturnsDelta</code> can skip the built-in V3 curve entirely and price the trade with its own formula. That is how custom curves (for example stable-swap math) can run inside V4.</p>
+  <p>Fees can be <span class="new" tabindex="0">dynamic</span> too. If the PoolKey's fee is the flag value <code>0x800000</code>, the hook can set or override the fee per swap, for example raising it when the market is volatile so LPs lose less to arbitrage.</p>
+
+  <div class="worked">
+    <header><span class="eyebrow">Worked example</span>A dynamic-fee hook in numbers</header>
+    <ol>
+      <li>Pool is ETH/USDC with the dynamic fee flag. The hook sets 0.05% in calm markets and 0.5% when the last hour's price moved more than 3%.</li>
+      <li>Calm hour, a trader sells 1 ETH at a spot price of 2,000 in a deep pool. Fee: <span class="calc">1 ETH × 0.0005 = 0.0005 ETH ≈ 1 USDC to LPs</span></li>
+      <li>Volatile hour, an arbitrageur sells the same 1 ETH. Fee: <span class="calc">1 ETH × 0.005 = 0.005 ETH ≈ 10 USDC to LPs</span></li>
+      <li>The curve math is the same in both cases. Only the 0.997 from the V1 chapter becomes 0.9995 or 0.995. The hook chooses which.</li>
+    </ol>
+  </div>
+
+  <div class="check">
+    <div class="eyebrow"><b>Security check</b><span>V4 hook fees</span></div>
+    <ul>
+      <li><div class="item"><input type="checkbox" aria-label="Mark this check as done"><div><div class="ask">Does the hook charge the same fee whether a swap is exact-input or exact-output?</div>
+        <p><code>amountSpecified</code> is negative for exact-input swaps and positive for exact-output swaps. A fee calculated from it is taken from the input in one case and from the output in the other.</p>
+        <details><summary>Details</summary><dl>
+          <dt>What</dt><dd>Taking a percentage of <code>amountSpecified</code> means an exact-input swap pays it on what goes in, while an exact-output swap pays it on what comes out, which is already reduced by the LP fee and price impact. The same trade costs a different amount depending on how the trader specifies it, so traders pick the cheaper form. The higher the fee, the bigger the difference.</dd>
+          <dt>Check</dt><dd>How the fee is computed in <code>beforeSwap</code> and <code>afterSwap</code>, once for a negative and once for a positive <code>amountSpecified</code>.</dd>
+          <dt>Fix</dt><dd>Always base the fee on the same side of the trade, for example the input amount, whichever way the swap is specified.</dd>
+        </dl></details></div></div></li>
+    </ul>
+  </div>
+
+  <div class="audit">Hooks are where most V4 risk sits. A hook can hold user funds, can be upgradeable, can revert to block withdrawals, and with return-delta flags can take value from swappers or LPs. A pool is only as safe as its hook, and the PoolManager does not check what the hook does beyond keeping deltas balanced.</div>
+
+  <p id="launchpads">Launchpads that graduate a token from a bonding curve into a V4 pool bring their own risks. The <a href="bonding-curves.html#ch4" style="color:var(--L)">Bonding Curves lesson</a> covers them in its graduation chapter.</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="eyebrow">Question 8</div>
+    <div class="q">A hook is deployed at an address ending in <code>…00C0</code>. Which hook functions will the PoolManager call?</div>
+    <div class="opts"><button class="opt">Only beforeInitialize</button><button class="opt">beforeAddLiquidity and afterAddLiquidity</button><button class="opt">beforeSwap and afterSwap</button></div>
+    <div class="why" hidden>0xC0 is binary 1100 0000: bits 7 and 6 are set. Bit 7 is beforeSwap, bit 6 is afterSwap. Try it in the figure above.</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="eyebrow">Question 9</div>
+    <div class="q">Which part of the pricing math changed from V3 to V4?</div>
+    <div class="opts"><button class="opt">The curve became x · y · z = k for three tokens</button><button class="opt">None of the built-in curve. V4 uses V3's concentrated liquidity math, but hooks may replace it for their own pools</button><button class="opt">Ticks now use 1.001 instead of 1.0001</button></div>
+    <div class="why" hidden>The built-in math (L, √P, ticks at 1.0001<sup>i</sup>) is the same. V4 changed the architecture: singleton, flash accounting, hooks, native ETH.</div>
+  </div>
+</section>
+
+<!-- ============================ COMPARE ============================ -->
+<section class="chapter" id="compare">
+  <div class="chapter-head">
+    <div class="big">∑</div>
+    <div class="eyebrow">Recap</div>
+    <h2>Four versions side by side</h2>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>V1 (2018)</th><th>V2 (2020)</th><th>V3 (2021)</th><th>V4 (2025)</th></tr></thead>
+      <tbody>
+        <tr><td><b>Pairs</b></td><td>Token / ETH only</td><td>Any ERC-20 pair (WETH for ETH)</td><td>Any ERC-20 pair</td><td>Any pair, native ETH</td></tr>
+        <tr><td><b>Curve</b></td><td>x·y = k</td><td>x·y = k</td><td>x·y = k per range, tracked as L and √P</td><td>Same as V3, or a custom curve in a hook</td></tr>
+        <tr><td><b>Fee</b></td><td>0.3%</td><td>0.3% (0.05% to the protocol since Dec 2025)</td><td>0.01 / 0.05 / 0.3 / 1%</td><td>Any fee, or dynamic via hook</td></tr>
+        <tr><td><b>LP receipt</b></td><td>ERC-20 LP token</td><td>ERC-20 LP token</td><td>NFT per position (via periphery)</td><td>Position inside PoolManager (NFT via periphery)</td></tr>
+        <tr><td><b>Oracle</b></td><td>None</td><td>Arithmetic TWAP from price accumulator</td><td>Geometric TWAP from tick accumulator</td><td>None built in; possible as a hook</td></tr>
+        <tr><td><b>Pool contracts</b></td><td>One per token</td><td>One per pair</td><td>One per pair and fee tier</td><td>One PoolManager for all</td></tr>
+        <tr><td><b>New idea</b></td><td>The constant product AMM</td><td>Flash swaps, TWAP</td><td>Concentrated liquidity, ticks</td><td>Hooks, flash accounting</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="eyebrow">Question 10</div>
+    <div class="q">A friend LPs $10,000 in a very tight V3 range and is excited about 10× the fees of V2. What should you warn them about?</div>
+    <div class="opts"><button class="opt">The same concentration also multiplies impermanent loss, and the position earns nothing once the price leaves the range</button><button class="opt">V3 positions cannot be withdrawn until the range expires</button><button class="opt">V3 charges LPs a 10× higher protocol fee</button></div>
+    <div class="why" hidden>Concentration works in both directions. Inside the range, more fees per dollar. When price moves, the position converts fully to the weaker token faster than a V2 position would.</div>
+  </div>
+  <p id="score" style="font-family:var(--display);font-size:15px;color:var(--muted)"></p>
+</section>
+
+<!-- ============================ DICTIONARY ============================ -->
+<section class="chapter" id="dictionary">
+  <div class="chapter-head">
+    <div class="big">A–Z</div>
+    <div class="eyebrow">Every term and symbol from the lesson</div>
+    <h2>Dictionary</h2>
+  </div>
+  <label for="dictQ" class="eyebrow" style="display:block;margin-top:18px">Filter</label>
+  <input class="dictfilter" id="dictQ" type="search" placeholder="Type a word, for example tick">
+  <dl class="dict" id="dict"></dl>
+</section>
+
+<footer>Numbers in the examples are rounded to two or four decimals. The swap examples ignore gas and assume no other trades land in the same block.</footer>
+</main>
+</div>
+
+<script>
+(function(){
+const NS="http://www.w3.org/2000/svg";
+const $=id=>document.getElementById(id);
+const fmt=(n,d=2)=>n.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+function el(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+function clear(s){while(s.firstChild)s.removeChild(s.firstChild);}
+function frame(svg,o){
+  const W=o.W||640,H=o.H||300,m=o.m||{l:58,r:18,t:16,b:38};
+  const sx=v=>m.l+(o.xlog?(Math.log(v)-Math.log(o.x0))/(Math.log(o.x1)-Math.log(o.x0)):(v-o.x0)/(o.x1-o.x0))*(W-m.l-m.r);
+  const sy=v=>H-m.b-(v-o.y0)/(o.y1-o.y0)*(H-m.t-m.b);
+  (o.yt||[]).forEach(v=>{el("line",{x1:m.l,x2:W-m.r,y1:sy(v),y2:sy(v),class:"gl"},svg);el("text",{x:m.l-8,y:sy(v)+4,"text-anchor":"end"},svg,o.yf?o.yf(v):v);});
+  (o.xt||[]).forEach(v=>{el("text",{x:sx(v),y:H-m.b+18,"text-anchor":"middle"},svg,o.xf?o.xf(v):v);});
+  el("line",{x1:m.l,x2:W-m.r,y1:H-m.b,y2:H-m.b,class:"axis"},svg);
+  el("line",{x1:m.l,x2:m.l,y1:m.t,y2:H-m.b,class:"axis"},svg);
+  if(o.xl)el("text",{x:(m.l+W-m.r)/2,y:H-4,"text-anchor":"middle"},svg,o.xl);
+  if(o.yl)el("text",{x:14,y:(m.t+H-m.b)/2,"text-anchor":"middle",transform:`rotate(-90 14 ${(m.t+H-m.b)/2})`},svg,o.yl);
+  return {sx,sy,W,H,m};
+}
+
+/* ---------- V1 curve ---------- */
+const X0=10,Y0=20000,K=X0*Y0;
+function drawCurve(){
+  const svg=$("curveSvg");clear(svg);
+  const dx=+$("curveDx").value, fee=$("curveFee").checked;
+  $("curveDxOut").textContent=dx.toFixed(1)+" ETH";
+  const eff=fee?0.997*dx:dx;
+  const out=dx>0?Y0*eff/(X0+eff):0;
+  const x1=X0+dx,y1=Y0-out;
+  const f=frame(svg,{W:640,H:340,x0:4,x1:28,y0:0,y1:50000,xt:[5,10,15,20,25],yt:[0,10000,20000,30000,40000,50000],yf:v=>v?(v/1000)+"k":"0",xl:"ETH in pool (x)",yl:"USDC in pool (y)"});
+  let d="";for(let x=4;x<=28;x+=0.1){d+=(d?"L":"M")+f.sx(x).toFixed(1)+" "+f.sy(K/x).toFixed(1);}
+  el("path",{d,fill:"none",stroke:"var(--ink)","stroke-width":2,opacity:.85},svg);
+  el("text",{x:f.sx(26.5),y:f.sy(K/26.5)-10,"text-anchor":"middle",style:"fill:var(--ink)"},svg,"x · y = 200,000");
+  if(dx>0){
+    let p="";for(let x=X0;x<=x1+1e-9;x+=Math.max(0.02,dx/80)){p+=(p?"L":"M")+f.sx(x).toFixed(1)+" "+f.sy(K/x).toFixed(1);}
+    el("path",{d:p,fill:"none",stroke:"var(--L)","stroke-width":5,"stroke-linecap":"round",opacity:.5},svg);
+    el("line",{x1:f.sx(X0),x2:f.sx(x1),y1:f.sy(Y0)+0.5,y2:f.sy(Y0)+0.5,stroke:"var(--x)","stroke-width":2,"stroke-dasharray":"4 3"},svg);
+    el("line",{x1:f.sx(x1),x2:f.sx(x1),y1:f.sy(Y0),y2:f.sy(y1),stroke:"var(--y)","stroke-width":2,"stroke-dasharray":"4 3"},svg);
+    el("text",{x:(f.sx(X0)+f.sx(x1))/2,y:f.sy(Y0)-8,"text-anchor":"middle",style:"fill:var(--x)"},svg,"+"+dx.toFixed(1)+" ETH in");
+    el("text",{x:f.sx(x1)+8,y:(f.sy(Y0)+f.sy(y1))/2+4,style:"fill:var(--y)"},svg,"−"+fmt(out,0)+" USDC out");
+    el("circle",{cx:f.sx(x1),cy:f.sy(y1),r:6,fill:"var(--L)",stroke:"var(--paper)","stroke-width":2},svg);
+  }
+  el("circle",{cx:f.sx(X0),cy:f.sy(Y0),r:6,fill:"var(--ink)",stroke:"var(--paper)","stroke-width":2},svg);
+  el("text",{x:f.sx(X0)-8,y:f.sy(Y0)-10,"text-anchor":"end",style:"fill:var(--ink)"},svg,"start: 10 ETH, 20k USDC");
+  const avg=dx>0?out/dx:2000, spot=y1/x1;
+  $("r-out").textContent=fmt(out);
+  $("r-avg").textContent=fmt(avg);
+  $("r-spot").textContent=fmt(spot);
+  $("r-imp").textContent=dx>0?fmt((1-Y0/(X0+dx)/2000)*100)+"%":"0.00%";
+}
+["curveDx","curveFee"].forEach(i=>$(i).addEventListener("input",drawCurve));drawCurve();
+
+/* ---------- IL ---------- */
+const il=r=>2*Math.sqrt(r)/(1+r)-1;
+function drawIL(){
+  const svg=$("ilSvg");clear(svg);const r=+$("ilR").value;
+  $("ilROut").textContent=r.toFixed(2)+"×";
+  const f=frame(svg,{W:640,H:300,x0:0.1,x1:5,y0:-45,y1:2,xt:[0.5,1,2,3,4,5],xf:v=>v+"×",yt:[0,-10,-20,-30,-40],yf:v=>v+"%",xl:"Price ratio r (new price ÷ deposit price)",yl:"Loss vs holding"});
+  let d="";for(let x=0.1;x<=5.0001;x+=0.02){d+=(d?"L":"M")+f.sx(x).toFixed(1)+" "+f.sy(il(x)*100).toFixed(1);}
+  el("path",{d:d+`L${f.sx(5)} ${f.sy(0)}L${f.sx(0.1)} ${f.sy(0)}Z`,fill:"var(--L-soft)"},svg);
+  el("path",{d,fill:"none",stroke:"var(--L)","stroke-width":2},svg);
+  el("line",{x1:f.sx(1),x2:f.sx(1),y1:f.sy(2),y2:f.sy(-45),class:"gl"},svg);
+  el("text",{x:f.sx(1)+6,y:f.sy(-42)},svg,"no change");
+  el("line",{x1:f.sx(r),x2:f.sx(r),y1:f.sy(0),y2:f.sy(il(r)*100),stroke:"var(--ink)","stroke-width":1,"stroke-dasharray":"3 3"},svg);
+  el("circle",{cx:f.sx(r),cy:f.sy(il(r)*100),r:6,fill:"var(--L)",stroke:"var(--paper)","stroke-width":2},svg);
+  const lx=f.sx(r)>520?f.sx(r)-10:f.sx(r)+10;
+  el("text",{x:lx,y:f.sy(il(r)*100)+18,"text-anchor":f.sx(r)>520?"end":"start",style:"fill:var(--ink);font-size:12px"},svg,fmt(il(r)*100)+"%");
+  const hold=5000+5000*r, lp=hold*(1+il(r));
+  $("il-loss").textContent=fmt(il(r)*100)+"%";
+  $("il-hold").textContent="$"+fmt(hold,0);
+  $("il-lp").textContent="$"+fmt(lp,0);
+  svg._f=f;
+}
+$("ilR").addEventListener("input",drawIL);drawIL();
+$("ilSvg").addEventListener("pointermove",e=>{
+  const svg=$("ilSvg"),b=svg.getBoundingClientRect();const px=(e.clientX-b.left)/b.width*640;
+  const m=58,W=640-18;if(px<m||px>W)return;let r=0.1+(px-m)/(W-m)*(5-0.1);r=Math.round(r*100)/100;$("ilR").value=r;drawIL();
+});
+
+/* ---------- TWAP ---------- */
+const base=Array.from({length:30},(_,i)=>2000+28*Math.sin(i/3.2)+12*Math.cos(i*1.7));
+let manip=false;
+function drawTwap(){
+  const svg=$("twapSvg");clear(svg);
+  const s=base.map((v,i)=>manip&&i===21?3000:v);
+  const twap=s.reduce((a,b)=>a+b,0)/s.length, twap0=base.reduce((a,b)=>a+b,0)/base.length;
+  const f=frame(svg,{W:640,H:280,x0:0.5,x1:30.5,y0:1900,y1:3100,xt:[1,5,10,15,20,25,30],yt:[2000,2250,2500,2750,3000],yf:v=>fmt(v,0),xl:"Block",yl:"USDC per ETH"});
+  let d="";s.forEach((v,i)=>{const x0=f.sx(i+0.5),x1=f.sx(i+1.5),y=f.sy(v);d+=(i?"L":"M")+x0.toFixed(1)+" "+y.toFixed(1)+"L"+x1.toFixed(1)+" "+y.toFixed(1);});
+  el("path",{d,fill:"none",stroke:"var(--x)","stroke-width":2},svg);
+  el("line",{x1:f.sx(0.5),x2:f.sx(30.5),y1:f.sy(twap),y2:f.sy(twap),stroke:"var(--L)","stroke-width":2,"stroke-dasharray":"6 4"},svg);
+  el("text",{x:f.sx(30.5)-4,y:f.sy(twap)-8,"text-anchor":"end",style:"fill:var(--L)"},svg,"TWAP "+fmt(twap,0));
+  if(manip)el("text",{x:f.sx(22),y:f.sy(3000)-8,"text-anchor":"middle",style:"fill:var(--ink)"},svg,"attacker's block");
+  $("tw-spot").textContent=fmt(s[21],0);$("tw-avg").textContent=fmt(twap,2);
+  $("tw-move").textContent=(twap-twap0>=0?"+":"")+fmt(twap-twap0,2);
+  $("twapBtn").textContent=manip?"Remove the manipulation":"Manipulate block 22 to 3,000";
+}
+$("twapBtn").addEventListener("click",()=>{manip=!manip;drawTwap();});drawTwap();
+
+/* ---------- V3 range ---------- */
+function drawRange(src){
+  let a=+$("rgA").value,b=+$("rgB").value;const P=+$("rgP").value;
+  if(a>=b){if(src==="rgA"){b=a+50;$("rgB").value=b;}else{a=b-50;$("rgA").value=a;}}
+  $("rgAOut").textContent=fmt(a,0);$("rgBOut").textContent=fmt(b,0);$("rgPOut").textContent=fmt(P,0);
+  const s=Math.sqrt,sa=s(a),sb=s(b),sp=Math.min(Math.max(s(P),sa),sb);
+  const L=1;const x=L*(1/sp-1/sb),y=L*(sp-sa);const val=P*x+y;const eff=2*L*s(P)/val;
+  const vx=P*x/val, vy=y/val;
+  const inR=P>=a&&P<=b;
+  const svg=$("rangeSvg");clear(svg);
+  const top=Math.max(4,Math.ceil(Math.min(eff,60)/2)*2+2);
+  const ticks=[];const step=top<=10?2:top<=30?5:10;for(let v=0;v<=top;v+=step)ticks.push(v);
+  const f=frame(svg,{W:640,H:300,x0:500,x1:5000,y0:0,y1:top,xt:[1000,2000,3000,4000,5000],xf:v=>fmt(v,0),yt:ticks,yf:v=>v+"×",xl:"ETH price (USDC)",yl:"Liquidity per $ (V2 = 1×)"});
+  const h=Math.min(eff,top);
+  el("rect",{x:f.sx(500),y:f.sy(1),width:f.sx(5000)-f.sx(500),height:f.sy(0)-f.sy(1),fill:"var(--muted)",opacity:.35},svg);
+  el("rect",{x:f.sx(a),y:f.sy(h),width:Math.max(2,f.sx(b)-f.sx(a)),height:f.sy(0)-f.sy(h),fill:"var(--L)",opacity:inR?.85:.35,rx:2},svg);
+  el("text",{x:(f.sx(a)+f.sx(b))/2,y:f.sy(h)-6,"text-anchor":"middle",style:"fill:var(--ink)"},svg,(eff>60?">60":fmt(eff,1))+"×");
+  el("line",{x1:f.sx(P),x2:f.sx(P),y1:f.sy(top),y2:f.sy(0),stroke:"var(--ink)","stroke-width":2},svg);
+  el("text",{x:f.sx(P)+(f.sx(P)>540?-6:6),y:f.sy(top)+12,"text-anchor":f.sx(P)>540?"end":"start",style:"fill:var(--ink)"},svg,"price "+fmt(P,0));
+  $("rg-status").textContent=inR?"In range, earning fees":(P<a?"Below range, no fees":"Above range, no fees");
+  $("rg-status").style.color=inR?"var(--good)":"var(--bad)";
+  $("rg-eff").textContent=inR?fmt(eff,1)+"×":"0× (inactive)";
+  $("rg-sx").style.width=(vx*100)+"%";$("rg-sy").style.width=(vy*100)+"%";
+  $("rg-sx").textContent=vx>0.08?"ETH "+Math.round(vx*100)+"%":"";$("rg-sy").textContent=vy>0.08?"USDC "+Math.round(vy*100)+"%":"";
+}
+["rgA","rgB","rgP"].forEach(i=>$(i).addEventListener("input",()=>drawRange(i)));drawRange();
+
+/* ---------- ticks ---------- */
+function drawTick(){
+  const P=parseFloat(String($("tkP").value).replace(/,/g,""));const sp=+$("tkS").value;
+  if(!(P>0)){["tk-i","tk-p","tk-u","tk-q"].forEach(i=>$(i).textContent="enter a price above 0");return;}
+  const t=Math.floor(Math.log(P)/Math.log(1.0001));
+  if(t<-887272||t>887272){["tk-i","tk-p","tk-u","tk-q"].forEach(i=>$(i).textContent="outside the valid tick range");return;}
+  $("tk-i").textContent=t.toLocaleString("en-US");
+  $("tk-p").textContent=Math.pow(1.0001,t).toPrecision(8);
+  const u=Math.floor(t/sp)*sp;$("tk-u").textContent=u.toLocaleString("en-US")+" (≈ "+Math.pow(1.0001,u).toPrecision(6)+")";
+  try{const q=BigInt(Math.round(Math.sqrt(P)*2**48))*(2n**48n);$("tk-q").textContent="≈ "+q.toString();}catch(e){$("tk-q").textContent="out of range";}
+}
+["tkP","tkS"].forEach(i=>$(i).addEventListener("input",drawTick));drawTick();
+
+/* ---------- flash accounting ---------- */
+const steps=[
+ {n:"Start: call unlock()",d:[0,0,0],t:0,note:"The PoolManager calls your contract back. All deltas start at zero."},
+ {n:"Swap 1 ETH → USDC",d:[-1,2000,0],t:0,note:"Pool 1 records that you owe 1 ETH and are owed 2,000 USDC. No tokens moved yet."},
+ {n:"Swap 2,000 USDC → DAI",d:[-1,0,2000],t:0,note:"Pool 2 uses your USDC credit. The USDC delta drops back to zero. You are owed 2,000 DAI. Fees and price impact are left out to keep the numbers simple."},
+ {n:"settle(): pay 1 ETH",d:[0,0,2000],t:1,note:"You send 1 ETH to the PoolManager. Your ETH delta is now zero. Transfer #1."},
+ {n:"take(): withdraw 2,000 DAI",d:[0,0,0],t:2,note:"The PoolManager sends you the DAI. Every delta is zero, so unlock() returns and the transaction succeeds. 2 transfers in total. The same route in V3 needs about 4."}
+];
+let st=0;
+function cell(v,dec){if(v===0)return '<td class="num">0</td>';return `<td class="num ${v<0?"neg":"pos"}">${v>0?"+":""}${fmt(v,dec)}</td>`;}
+function drawLedger(){
+  $("ledger").innerHTML=steps.slice(0,st+1).map((s,i)=>`<tr${i===st?' style="background:var(--L-soft)"':''}><td>${s.n}</td>${cell(s.d[0],0)}${cell(s.d[1],0)}${cell(s.d[2],0)}<td class="num">${s.t}</td></tr>`).join("");
+  $("ledgerNote").textContent=steps[st].note;$("ldBack").disabled=st===0;$("ldNext").disabled=st===steps.length-1;
+}
+$("ldNext").addEventListener("click",()=>{if(st<steps.length-1){st++;drawLedger();}});
+$("ldBack").addEventListener("click",()=>{if(st>0){st--;drawLedger();}});drawLedger();
+
+/* ---------- hook flags ---------- */
+const FLAGS=[["beforeInitialize",13],["afterInitialize",12],["beforeAddLiquidity",11],["afterAddLiquidity",10],["beforeRemoveLiquidity",9],["afterRemoveLiquidity",8],["beforeSwap",7],["afterSwap",6],["beforeDonate",5],["afterDonate",4],["beforeSwapReturnsDelta",3],["afterSwapReturnsDelta",2],["afterAddLiquidityReturnsDelta",1],["afterRemoveLiquidityReturnsDelta",0]];
+$("flags").innerHTML=FLAGS.map(([n,b])=>`<label for="hf${b}"><input type="checkbox" id="hf${b}" data-bit="${b}"${b===7||b===6?" checked":""}>${n}<span class="bit">bit ${b}</span></label>`).join("");
+function drawHooks(){
+  let v=0;document.querySelectorAll("#flags input").forEach(c=>{if(c.checked)v|=1<<+c.dataset.bit;});
+  const hex=v.toString(16).toUpperCase().padStart(4,"0");
+  $("hookAddr").innerHTML='0x42ce820976965f81a71a68041bb501d4bfe3<span class="hi">'+hex+'</span>';
+  $("hookBin").textContent="Lowest 14 bits: "+v.toString(2).padStart(14,"0").replace(/(\d{2})(\d{4})(\d{4})(\d{4})/,"$1 $2 $3 $4")+". In practice the bits above 13 can be anything; only the lowest 14 are read.";
+}
+$("flags").addEventListener("change",drawHooks);drawHooks();
+
+/* ---------- quizzes ---------- */
+let answered=0,correct=0;const total=document.querySelectorAll(".quiz").length;
+function score(){$("score").textContent=answered?`You answered ${answered} of ${total} questions, ${correct} right on the first try.`:"";}
+document.querySelectorAll(".quiz:not(.tryq)").forEach(q=>{
+  const ans=+q.dataset.answer,opts=[...q.querySelectorAll(".opt")],why=q.querySelector(".why");let first=true;
+  opts.forEach((b,i)=>b.addEventListener("click",()=>{
+    if(i===ans){b.classList.add("right");why.innerHTML='<b class="ok">Right. </b>'+why.innerHTML.replace(/^<b[^>]*>.*?<\/b>/,"");why.hidden=false;if(first){answered++;correct++;score();}first=false;}
+    else{b.classList.add("wrong");if(first){answered++;score();}first=false;}
+  }));
+});
+document.querySelectorAll(".tryq").forEach(q=>{
+  const tgt=+q.dataset.target,tol=+q.dataset.tol,inp=q.querySelector("input"),why=q.querySelector(".why"),steps=q.querySelector(".steps");let first=true;
+  q.querySelector(".chk").addEventListener("click",()=>{
+    const v=parseFloat(inp.value.replace(/,/g,""));
+    if(isNaN(v)){why.hidden=false;why.textContent="Type a number, for example 1234.5";return;}
+    const ok=Math.abs(v-tgt)/tgt<=tol;why.hidden=false;
+    why.innerHTML=ok?'<b class="ok">Right.</b> 9,090.91 USDC.':'<b class="no">Not quite.</b> Check which reserve goes on top of the fraction, then try again or show the steps.';
+    if(first){answered++;if(ok)correct++;score();first=false;}
+    if(ok)steps.hidden=false;
+  });
+  q.querySelector(".show").addEventListener("click",()=>{steps.hidden=false;});
+});
+
+/* ---------- dictionary ---------- */
+const DICT=[
+["AMM (automated market maker)","A contract that quotes prices from a formula and its own reserves, instead of matching buy and sell orders."],
+["Arbitrageur","A trader who buys where a token is cheap and sells where it is expensive. Arbitrage keeps a pool's price in line with other markets, and is what causes impermanent loss."],
+["Basis point (bp)","One hundredth of a percent: 0.01%. One tick is a 1 bp price step."],
+["Callback","A function on your contract that a pool calls in the middle of a swap or mint so you can pay what you owe. It must only accept calls from the real pool (V3) or the PoolManager (V4)."],
+["Capital efficiency","How much liquidity you get per dollar deposited. A V3 range of 1,600 to 2,500 around 2,000 is about 9.5× as efficient as V2."],
+["Concentrated liquidity","V3's idea: each LP chooses a price range, and their money only provides liquidity while the price is inside it."],
+["Delta (Δ)","In formulas, \"the change in\" something: Δx is the change in x. In V4, the running balance of what you owe (negative) or are owed (positive) during an unlock."],
+["Divergence loss","Another name for impermanent loss."],
+["Dynamic fee","A V4 pool fee that a hook can change per swap. Signaled by fee = 0x800000 in the PoolKey."],
+["ERC-6909","A multi-token standard. V4 uses it for claim tokens: balances you leave inside the PoolManager instead of withdrawing."],
+["Fee tier","The fixed fee options of V3 pools: 0.01%, 0.05%, 0.3% and 1%."],
+["Flash accounting","V4's method of tracking deltas during unlock and only moving tokens for the net result at the end."],
+["Flash swap","V2: the pool sends output tokens first and checks payment at the end of the same transaction."],
+["Geometric mean","An average of multiplied values instead of added values. V3's oracle averages ticks (logs of price), which gives a geometric mean price."],
+["Graduate (graduation)","When a launchpad token has raised enough on its bonding curve, the launchpad creates a regular AMM pool and moves the raised funds into it as liquidity."],
+["Hook","A contract a V4 pool calls before or after initialize, liquidity changes, swaps and donations. Its permissions are encoded in the lowest 14 bits of its address."],
+["Impermanent loss (IL)","How much less an LP position is worth than simply holding the deposited tokens, caused by price moves. For V2: IL = 2√r/(1+r) − 1."],
+["Invariant (k)","A value a trade must not decrease. In V1 and V2, k = x · y."],
+["L (liquidity)","V3/V4's measure of depth: L = √(x·y). Bigger L means a trade moves the price less. Δy = L·Δ√P."],
+["Launchpad","A contract that launches new tokens, usually selling them on a bonding curve first and later graduating them into an AMM pool."],
+["Liquidity pool","The two token reserves held by an AMM contract."],
+["LP (liquidity provider)","Someone who deposits tokens into a pool and earns trading fees."],
+["LP token","An ERC-20 receipt for a share of a V1 or V2 pool. V3 positions are all different, so the periphery position manager issues an NFT for each one instead. V4 keeps positions inside the PoolManager and can also issue an NFT through the periphery."],
+["maxLiquidityPerTick","The most liquidity that may reference any one tick, set by the tick spacing. A mint that would exceed it reverts."],
+["MINIMUM_LIQUIDITY","1,000 LP token units that V2 burns on the first deposit to stop share-price inflation attacks."],
+["Oracle","A source of prices that other contracts read."],
+["P (price)","Price of token X (token0) in units of token Y (token1): y ÷ x."],
+["Pip","One hundredth of a basis point. V3/V4 fees are in pips: 3000 = 0.3%."],
+["PoolKey","V4's pool identifier: currency0, currency1, fee, tickSpacing and hooks. Its hash is the PoolId."],
+["PoolManager","The single V4 contract that holds every pool."],
+["Price accumulator","A running sum of price × seconds that V2 stores so others can compute a TWAP."],
+["Price impact","How much worse your average price is than the spot price before the trade, because your own trade moves the price as it fills. It grows with trade size relative to the pool."],
+["Protocol fee","A share of the swap fee that can go to the protocol instead of LPs, if governance switches it on."],
+["Q64.96","Fixed-point number format: 64 bits for the whole part, 96 for the fraction. V3/V4 store √P this way as sqrtPriceX96."],
+["r (price ratio)","In the IL formula: new price ÷ price when you deposited."],
+["Range (p_a, p_b)","The lower and upper price of a V3/V4 position."],
+["Range order","A thin V3 range funded with one token, which converts to the other as the price crosses it, like a limit order."],
+["Real reserves","The tokens a V3 position actually holds: x = L(1/√P − 1/√p_b), y = L(√P − √p_a)."],
+["Reserves (x, y)","The amounts of each token a pool holds."],
+["Router","A periphery contract that chains swaps across pools, wraps ETH, and enforces your slippage limit."],
+["Singleton","One contract holding many instances, as the V4 PoolManager holds all pools."],
+["Slippage","The difference between the price you were quoted and the price you got, including price impact and other trades that landed first."],
+["Spot price","The price for an infinitely small trade right now. For x·y = k it is y ÷ x."],
+["sqrtPriceX96","√P × 2⁹⁶ stored as an integer. How V3 and V4 store the current price."],
+["√P (square root of price)","The value V3 tracks instead of price, because it makes swap math linear: Δy = L·Δ√P."],
+["Tick","A price step: tick i means price 1.0001ⁱ. Ranges must start and end on ticks."],
+["Tick spacing","A range can only start or end on ticks that are multiples of this number. 60 for 0.3% pools."],
+["Transient storage","EVM storage that is wiped at the end of each transaction (EIP-1153). V4 keeps deltas there."],
+["TWAP","Time-weighted average price: (accumulator now − accumulator then) ÷ (time now − time then)."],
+["Virtual reserves","The reserves a V2 pool would need to give the same depth as a V3 position: L/√P and L·√P."],
+["Vyper","A Python-like smart contract language. Uniswap V1 was written in it."],
+["WETH","Wrapped ETH, an ERC-20 backed 1:1 by ETH. Needed in V2 and V3 because ETH is not an ERC-20."],
+["x · y = k","The constant product rule. Reserve of X times reserve of Y stays constant through trades (and grows with fees)."]
+];
+function drawDict(){
+  const q=$("dictQ").value.trim().toLowerCase();
+  $("dict").innerHTML=DICT.filter(([t,d])=>!q||t.toLowerCase().includes(q)||d.toLowerCase().includes(q)).map(([t,d])=>`<div><dt>${t}</dt><dd>${d}</dd></div>`).join("")||"<div><dt>No match</dt><dd>Try a shorter word.</dd></div>";
+}
+$("dictQ").addEventListener("input",drawDict);drawDict();
+/* inline term popups from dictionary: hover or focus to peek, tap to pin, link jumps to the entry */
+const sing=w=>w.toLowerCase().trim().replace(/s$/,"");
+const names=t=>[t.split(" (")[0],(t.match(/\(([^)]*)\)/)||[])[1]].filter(Boolean).map(sing);
+function lookup(word){const w=sing(word);
+  return DICT.find(([t])=>names(t).includes(w))||DICT.find(([t])=>sing(t.split(" (")[0]).startsWith(w));}
+const pop=document.createElement("div");pop.className="termpop";pop.setAttribute("role","tooltip");pop.id="termpop";pop.hidden=true;document.body.appendChild(pop);
+let popFor=null,pinned=false,hideT=0;
+function showPop(s){clearTimeout(hideT);popFor=s;
+  pop.innerHTML=`<div class="tp-term"></div><div class="tp-def"></div>`+(s.dataset.term?`<a href="#dictionary" class="tp-link">See in dictionary &rarr;</a>`:"");
+  pop.querySelector(".tp-term").textContent=s.dataset.term||s.textContent;pop.querySelector(".tp-def").textContent=s.dataset.def;
+  const l=pop.querySelector(".tp-link");if(l)l.addEventListener("click",e=>{e.preventDefault();hidePop(true);$("dictQ").value=s.dataset.term.split(" (")[0];drawDict();$("dictionary").scrollIntoView({behavior:"smooth"});});
+  pop.hidden=false;s.setAttribute("aria-describedby","termpop");
+  const r=s.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
+  let left=Math.min(Math.max(8,r.left+r.width/2-pw/2),innerWidth-pw-8),top=r.bottom+8;
+  if(top+ph>innerHeight-8)top=r.top-ph-8;
+  pop.style.left=(left+scrollX)+"px";pop.style.top=(top+scrollY)+"px";}
+function hidePop(force){if(pinned&&!force)return;pinned=false;pop.hidden=true;if(popFor)popFor.removeAttribute("aria-describedby");popFor=null;}
+document.querySelectorAll(".new").forEach(s=>{
+  const hit=lookup(s.textContent);
+  s.dataset.def=hit?hit[1]:(s.title||"");if(hit)s.dataset.term=hit[0];
+  s.removeAttribute("title");if(!s.dataset.def){s.classList.remove("new");return;}
+  s.tabIndex=0;s.setAttribute("role","button");
+  s.addEventListener("pointerenter",e=>{if(e.pointerType==="mouse"&&!pinned)showPop(s);});
+  s.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse")hideT=setTimeout(()=>hidePop(),150);});
+  s.addEventListener("click",e=>{e.stopPropagation();if(pinned&&popFor===s){hidePop(true);return;}showPop(s);pinned=true;});
+  s.addEventListener("focus",()=>{if(!pinned)showPop(s);});
+  s.addEventListener("blur",()=>{if(!pinned)hidePop();});
+  s.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();s.click();}});
+});
+pop.addEventListener("pointerenter",()=>clearTimeout(hideT));
+pop.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse")hideT=setTimeout(()=>hidePop(),150);});
+pop.addEventListener("click",e=>e.stopPropagation());
+document.addEventListener("click",()=>hidePop(true));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")hidePop(true);});
+addEventListener("resize",()=>hidePop(true));
+
+/* ---------- progress & rail ---------- */
+const links=[...document.querySelectorAll("nav.rail ol a")];const secs=links.map(a=>document.querySelector(a.getAttribute("href")));
+function onScroll(){
+  const h=document.documentElement;const p=h.scrollTop/(h.scrollHeight-h.clientHeight||1);$("progress").style.width=(p*100)+"%";
+  let cur=0;secs.forEach((s,i)=>{if(s&&s.getBoundingClientRect().top<160)cur=i;});links.forEach((a,i)=>a.classList.toggle("on",i===cur));
+}
+addEventListener("scroll",onScroll,{passive:true});onScroll();
+
+/* ---------- security checklist ticks ---------- */
+document.querySelectorAll(".check .item input").forEach(c=>c.addEventListener("change",()=>c.closest("li").classList.toggle("done",c.checked)));
+document.querySelectorAll(".check .ask").forEach(a=>a.addEventListener("click",()=>{const c=a.closest(".item").querySelector("input");c.checked=!c.checked;c.dispatchEvent(new Event("change"));}));
+})();
+</script>
+
+</body></html>
