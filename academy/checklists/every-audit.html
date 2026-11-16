@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Every audit checklist · Heavyw8t's Security Academy</title>
+<meta name="description" content="A checklist of bugs to look for on every smart contract audit.">
+<link rel="icon" href="../assets/logo.jpg">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+  :root { --green: #4cc38a; --green-dim: rgba(76, 195, 138, 0.12); --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  main { max-width: 820px; }
+  .intro { margin-bottom: 28px; }
+
+  .bar {
+    position: sticky; top: 0; z-index: 5; background: var(--bg);
+    padding: 12px 0; margin-bottom: 28px; border-bottom: 1px solid var(--border);
+  }
+  .progress-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .progress-text { font-size: 0.92rem; color: var(--muted); }
+  .progress-text strong { color: var(--text); font-weight: 600; }
+  .track { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; display: flex; }
+  .track .done { background: var(--orange); transition: width .2s; }
+  .track .na { background: #4a4a4a; transition: width .2s; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .tools button, .tools label {
+    font: inherit; font-size: 0.85rem; color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tools button:hover, .tools label:hover { border-color: var(--orange); }
+  .tools input { accent-color: var(--orange); margin: 0; }
+  .tools .reset { color: var(--muted); }
+
+  .group { margin-bottom: 36px; }
+  .group h2 .count { color: var(--muted); font-weight: 400; letter-spacing: 0.04em; }
+  .item {
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+    margin-bottom: 8px; transition: border-color .15s, opacity .15s;
+  }
+  .item.checked { border-color: rgba(255, 122, 26, 0.35); }
+  .item.na { opacity: 0.5; }
+  .item.hidden { display: none; }
+  .row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; }
+  .box {
+    flex: none; width: 22px; height: 22px; margin-top: 1px; border-radius: 5px; cursor: pointer;
+    border: 2px solid #555; background: transparent; display: grid; place-items: center; padding: 0;
+  }
+  .box:hover { border-color: var(--orange); }
+  .box svg { width: 14px; height: 14px; stroke: var(--bg); stroke-width: 3; fill: none; visibility: hidden; }
+  .item.checked .box { background: var(--orange); border-color: var(--orange); }
+  .item.checked .box svg { visibility: visible; }
+  .toggle {
+    flex: 1; min-width: 0; text-align: left; font: inherit; color: var(--text); background: none;
+    border: 0; padding: 0; cursor: pointer; display: flex; justify-content: space-between; gap: 10px;
+  }
+  .toggle .t { font-weight: 600; line-height: 1.45; }
+  .item.checked .toggle .t { color: var(--muted); }
+  .item.na .toggle .t { text-decoration: line-through; }
+  .toggle .chev { flex: none; color: var(--muted); transition: transform .15s; margin-top: 1px; }
+  .item.open .toggle .chev { transform: rotate(90deg); color: var(--orange); }
+  .na-btn {
+    flex: none; font: inherit; font-size: 0.75rem; color: var(--muted); background: none; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; margin-top: 1px;
+  }
+  .na-btn:hover { color: var(--text); border-color: var(--muted); }
+  .item.na .na-btn { color: var(--text); border-color: var(--muted); background: var(--surface-2); }
+  .body { display: none; padding: 0 14px 14px 48px; }
+  .item.open .body { display: block; }
+  .body dl { margin: 0; display: grid; grid-template-columns: 56px 1fr; gap: 8px 12px; }
+  .body dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--orange); padding-top: 3px; }
+  .body dd { margin: 0; color: #d4d4d4; font-size: 0.95rem; }
+  code {
+    font-family: var(--mono); font-size: 0.86em; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere;
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--surface-2);
+    border: 1px solid var(--orange); border-radius: 8px; padding: 8px 14px; font-size: 0.9rem;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .toast.show { opacity: 1; }
+  .empty { color: var(--muted); font-size: 0.92rem; display: none; }
+
+  @media (max-width: 600px) {
+    .body { padding-left: 14px; }
+    .body dl { grid-template-columns: 1fr; gap: 2px; }
+    .body dd { margin-bottom: 8px; }
+  }
+</style>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Heavyw8t's Security Academy">
+<meta property="og:title" content="Every audit checklist">
+<meta property="og:description" content="A checklist of bugs to look for on every smart contract audit.">
+<meta property="og:url" content="https://heavyw8t.github.io/academy/checklists/every-audit.html">
+<meta property="og:image" content="https://heavyw8t.github.io/academy/assets/banner.png">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Heavyw8t's Security Academy banner">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@heavyw8t_">
+<meta name="twitter:creator" content="@heavyw8t_">
+</head>
+<body>
+<main>
+  <a class="back" href="index.html">&larr; Checklists</a>
+  <h1 class="page-title">Every audit</h1>
+  <div class="intro">
+    <p>Checks that apply to any codebase, whatever the protocol does. This list covers EVM code.</p>
+    <p>These are the things to check on every audit, and to get right in any contract you write. Go through this list first, then the list for the protocol type.</p>
+    <p>Tick an item once you have checked it, or mark it N/A when it does not apply. Open an item to see what goes wrong, what to look at, and one way to fix it. The fixes are suggestions: whether one fits depends on the protocol's architecture, design choices and intent.</p>
+  </div>
+
+  <div class="bar">
+    <div class="progress-row">
+      <span class="progress-text" id="progress" aria-live="polite"></span>
+    </div>
+    <div class="track" aria-hidden="true"><div class="done" id="bar-done"></div><div class="na" id="bar-na"></div></div>
+    <div class="tools">
+      <button type="button" id="expand">Open all</button>
+      <label><input type="checkbox" id="hide-done"> Hide done</label>
+      <button type="button" id="copy">Copy as Markdown</button>
+      <button type="button" id="reset" class="reset">Reset</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+  <p class="empty" id="empty">Every item is done. Untick "Hide done" to see them again.</p>
+
+  <footer>This website is purely for educational purposes.</footer>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const DATA = {"title": "Every audit", "intro": "Checks that apply to any codebase, whatever the protocol does. This list covers EVM code.", "sections": [{"name": "Access control", "items": [{"t": "Missing access control", "what": "a function that changes config, moves protocol funds, mints, or sets a privileged address has no role check, or a weaker one than it should. Anyone calls it and takes over that power.", "check": "every <code>external<\/code> and <code>public<\/code> function that writes state. Which role should be allowed to call it, and does the code check exactly that role? Look for internal helpers that a missing <code>internal<\/code> keyword made public, and modifiers left off one of several similar functions.", "fix": "add the narrowest role check to each such function, and keep helpers <code>internal<\/code> or <code>private<\/code>.", "raw": "Missing access control"}, {"t": "Acting for another account", "what": "a function takes a user address as an argument and acts on that user's tokens or position without checking that the caller is that user or approved by them. An attacker passes a victim's address and pulls tokens the victim approved to the protocol, or claims and redirects the victim's rewards.", "check": "every function that takes an <code>owner<\/code>, <code>from<\/code>, <code>user<\/code> or <code>receiver<\/code> argument. Is the caller that account, or an operator it approved? Who receives the funds?", "fix": "act only on <code>msg.sender<\/code>, or require an approval from the account, and send funds only to an address the account chose.", "raw": "Acting for another account"}, {"t": "Arbitrary external calls", "what": "a function calls a target and calldata that the user supplies, such as a router, a zap or a multicall. An attacker points it at a token the protocol holds or is approved for, and calls <code>transfer<\/code> or <code>transferFrom<\/code> as the protocol.", "check": "every low-level <code>call<\/code> whose target or data comes from user input.", "fix": "allowlist the targets and function selectors, and never let the target be a token the protocol holds or is approved for.", "raw": "Arbitrary external calls"}, {"t": "Missing pause checks", "what": "the pause switch is missing from some entry points, or from one side of an async flow. In a bridge or VRF flow, the request side may stop while the callback side keeps running.", "check": "every user-facing entry point and both sides of every async flow. Confirm the docs and the code agree on which functions stop when paused, and that exits users need, such as withdraw and repay, stay open.", "fix": "add the pause check to every entry point that should stop, and leave out the ones that must stay open.", "raw": "Missing pause checks"}, {"t": "User-supplied check contracts", "what": "when the address of an allowlist, oracle or pause contract comes in as a function argument, an attacker passes their own contract that approves everything.", "check": "every external call whose target address is a function argument instead of a stored, admin-set value.", "fix": "store the address in state or as <code>immutable<\/code>. Never take it from user input.", "raw": "User-supplied check contracts"}]}, {"name": "Funds in and out", "items": [{"t": "Missing slippage protection", "what": "a swap, deposit, withdrawal or liquidation uses a price or exchange rate that can move before the transaction runs, and it has no minimum output and no deadline. A bot sandwiches the transaction and keeps the difference.", "check": "every function whose output depends on a price or rate the user cannot fix in advance. Can the user pass a minimum output, or a maximum input, and a deadline?", "fix": "add a <code>minOut<\/code> or <code>maxIn<\/code> parameter and a deadline, check both, and let the user set them.", "raw": "Missing slippage protection"}, {"t": "Fee-on-transfer tokens", "what": "the contract credits the amount it asked to receive. A fee-on-transfer token delivers less, so the contract books more than it holds, and the last users to withdraw cannot get their funds out. Rebasing tokens break the same assumption when balances change without a transfer.", "check": "every <code>transferFrom<\/code> into the contract. Does the code credit the requested amount or the balance change? Which tokens does the protocol accept?", "fix": "credit the balance difference measured before and after the transfer, or document and enforce that such tokens are not supported.", "raw": "Fee-on-transfer tokens"}, {"t": "Unchecked transfer return values", "what": "some ERC-20 tokens return <code>false<\/code> on a failed transfer instead of reverting. Code that ignores the returned <code>bool<\/code> credits the user anyway. Other tokens, such as USDT on Ethereum, return nothing at all, so a call through the standard <code>IERC20<\/code> interface reverts when it tries to decode the missing <code>bool<\/code>.", "check": "every raw <code>transfer<\/code>, <code>transferFrom<\/code> and <code>approve<\/code> call on a token the protocol does not control.", "fix": "use OpenZeppelin <code>SafeERC20<\/code> (<code>safeTransfer<\/code>, <code>safeTransferFrom<\/code>, <code>forceApprove<\/code>).", "raw": "Unchecked transfer return values"}, {"t": "Withdrawal cap skips the transfer amount", "what": "a withdraw function converts the user's amount into an internal amount and caps the internal amount at the user's balance. The transfer still uses the original, uncapped amount. A user with a small position asks for a huge withdrawal: their position goes to zero and the contract sends them other users' funds.", "check": "every function that carries two amounts, one for internal accounting and one for the token transfer. After the internal amount is capped, is the transfer amount recomputed from it?", "fix": "compute the transfer amount from the capped internal amount.", "raw": "Withdrawal cap skips the transfer amount"}, {"t": "Donations breaking balance checks", "what": "logic that checks <code>address(this).balance<\/code> or <code>token.balanceOf(address(this))<\/code> against an exact value breaks when anyone sends tokens to the contract directly. The attacker can make the check fail forever, or inflate the accounting.", "check": "every check on the contract's raw balance.", "fix": "track deposits in a storage variable and check that instead.", "raw": "Donations breaking balance checks"}, {"t": "<code>msg.value<\/code> mishandling", "what": "a payable function reads <code>msg.value<\/code> inside a loop or in several calls of one multicall, counting the same ETH more than once. Or it accepts more ETH than it needs and never refunds the rest, or accepts ETH on a path that does not use it, and the ETH stays in the contract.", "check": "every payable function and every multicall that can reach one. Is <code>msg.value<\/code> used once, compared with the amount needed, and the excess refunded?", "fix": "read <code>msg.value<\/code> once, check it against the total needed, refund the excess, and make functions that do not use ETH non-payable.", "raw": "`msg.value` mishandling"}]}, {"name": "Math", "items": [{"t": "Wrong rounding direction", "what": "a division rounds in the user's favor, for example when minting shares, paying out a withdrawal or charging a fee. Each call gains the user up to 1 wei. That is rarely worth the gas once, but repeated in a loop, or with a token that has few decimals, it can drain real funds.", "check": "every division in share, withdrawal and fee math. Ask who gains when it rounds down.", "fix": "round in the protocol's favor: down for what the user receives, up for what the user pays. Use <code>mulDivDown<\/code> and <code>mulDivUp<\/code> to make the direction explicit.", "raw": "Wrong rounding direction"}, {"t": "Division before multiplication", "what": "in integer math, <code>(a / b) * c<\/code> floors <code>a / b<\/code> first. When <code>a<\/code> is smaller than <code>b<\/code>, the result is 0 however large <code>c<\/code> is. Code that copies a formula from a comment or a paper in written order can return 0 for every small ratio.", "check": "every expression that divides before it multiplies, especially ratios such as price change over price, or shares over total supply.", "fix": "multiply first and divide last. Use OpenZeppelin <code>Math.mulDiv<\/code> when the product could overflow.", "raw": "Division before multiplication"}, {"t": "Retroactive fee and rate changes", "what": "an admin changes a fee, interest rate or reward rate without settling what accrued under the old value. The new value applies to the whole period since the last update, and users pay a fee they never agreed to or lose rewards they already earned.", "check": "every setter for a fee, rate, emission or recipient. Does it accrue and settle pending amounts before it writes the new value?", "fix": "accrue and settle at the start of each such setter, then apply the new value from that point on.", "raw": "Retroactive fee and rate changes"}, {"t": "Silent overflow and truncation", "what": "Solidity 0.8 reverts on overflow, but not inside <code>unchecked<\/code> blocks or inline assembly. There, values wrap around silently. An explicit downcast such as <code>uint128(x)<\/code> also cuts off the high bits without reverting.", "check": "every <code>unchecked<\/code> block, every assembly math operation and every downcast, for inputs that can reach the edges.", "fix": "remove <code>unchecked<\/code> unless the bounds are proven, add explicit bounds checks, and use OpenZeppelin <code>SafeCast<\/code> for downcasts.", "raw": "Silent overflow and truncation"}]}, {"name": "Reentrancy", "items": [{"t": "Reentrancy", "what": "the contract makes an external call before it updates its state. The callee calls back in and repeats the action, for example withdrawing the same balance twice.", "check": "every native transfer and every call to a token or contract with hooks (ERC-777, ERC-721 and ERC-1155 receivers, callbacks) in a function that updates state after the call.", "fix": "update state before external calls (checks, effects, interactions), or add a <code>nonReentrant<\/code> guard.", "raw": "Reentrancy"}, {"t": "Read-only reentrancy", "what": "during an external call, the contract's state is half updated. Another protocol calls one of its view functions in that window, gets a wrong value, and prices something with it.", "check": "view functions that read state which changes after an external call in the same transaction, and the external protocols that use those views.", "fix": "finish all state updates before external calls, or make the view revert while the reentrancy lock is held.", "raw": "Read-only reentrancy"}]}, {"name": "Signatures", "items": [{"t": "Signature replay", "what": "the signed message has no nonce, no chain id or no contract address. Anyone who sees it submits it again, on the same contract, on another chain, or on a second deployment of the same contract.", "check": "every signature check. Does the signed data include a per-user nonce that the contract increments, and an EIP-712 domain with the current chain id and this contract's address?", "fix": "use EIP-712 with the chain id and contract address in the domain, include a per-user nonce in the signed data, and increment it on use.", "raw": "Signature replay"}, {"t": "Incomplete signed data", "what": "the signature covers some fields of a request but not all of them. Anyone who sees the signature submits it with a different recipient, amount, token or deadline, and the contract accepts it.", "check": "every struct a signature covers, compared with every argument of the function that checks it. Does each argument that changes the outcome appear in the signed data? Does the signature expire?", "fix": "sign every field that changes the outcome, including a deadline, and check the deadline on chain.", "raw": "Incomplete signed data"}, {"t": "Permit front-running", "what": "the <code>permit<\/code> signature is visible in the mempool. Anyone can submit it first, which uses up the nonce. The user's own transaction then calls <code>permit<\/code> again and reverts, even though the allowance is already set.", "check": "every function that calls <code>permit<\/code> without a <code>try<\/code>/<code>catch<\/code> or an allowance check.", "fix": "wrap <code>permit<\/code> in <code>try<\/code>/<code>catch<\/code>, then check that the allowance covers the amount.", "raw": "Permit front-running"}, {"t": "<code>ecrecover<\/code> returning <code>address(0)<\/code>", "what": "<code>ecrecover<\/code> returns <code>address(0)<\/code> for an invalid signature instead of reverting. If the code compares the result with an owner that can be <code>address(0)<\/code> (unset storage, or a user-supplied value), a junk signature passes and the contract writes state as if <code>address(0)<\/code> signed.", "check": "every raw <code>ecrecover<\/code> call, and every comparison of the recovered address with a stored or user-supplied address that can be zero.", "fix": "use OpenZeppelin <code>ECDSA.recover<\/code>, which reverts on invalid signatures, or <code>SignatureChecker<\/code>, which returns <code>false<\/code> for them. With raw <code>ecrecover<\/code>, require the recovered address to be non-zero.", "raw": "`ecrecover` returning `address(0)`"}]}, {"name": "Denial of service", "items": [{"t": "Unbounded loops", "what": "a loop walks over a list that anyone can grow, or that grows with the number of users. An attacker adds entries until the function runs out of gas, and it reverts on every call, for every user.", "check": "every <code>for<\/code> and <code>while<\/code> loop and every <code>push<\/code> any user can reach. What decides how many times the loop runs? Can an attacker grow the list or control the exit condition?", "fix": "cap the size of every list a loop walks over, or let callers process it in pages.", "raw": "Unbounded loops"}, {"t": "Push payment DoS", "what": "a function sends ETH or tokens to several parties in one call. One recipient reverts on receive, runs out of gas, or is blocklisted by the token, and the whole call reverts for everyone else too.", "check": "every function that pays more than one address, or pays an address a user chose, as part of an action other users depend on.", "fix": "record what each party is owed and let them withdraw it, or isolate each payment so one failure cannot block the rest.", "raw": "Push payment DoS"}]}, {"name": "Upgrades", "items": [{"t": "Storage collisions in upgrades", "what": "a base contract adds a new variable in an upgrade, and the variable lands in a slot the child contract already uses.", "check": "every upgradeable base contract has a storage gap at the end, or uses namespaced storage (ERC-7201).", "fix": "add a <code>uint256[N] __gap<\/code> and shrink it when adding variables, or move to namespaced storage.", "raw": "Storage collisions in upgrades"}, {"t": "Uninitialized implementation", "what": "if nobody initializes the implementation contract itself, an attacker calls <code>initialize<\/code> on it and becomes its owner. With old OpenZeppelin UUPS versions, the attacker could then destroy the implementation and break every proxy that uses it. Today the impact is usually smaller, but the attacker still controls a contract that carries the protocol's name.", "check": "every implementation behind a proxy calls <code>_disableInitializers()<\/code> in its constructor.", "fix": "add <code>_disableInitializers()<\/code> to the constructor.", "raw": "Uninitialized implementation"}]}]};
+const KEY = "academy-checklist-every-audit";
+
+const cap = s => /^[a-z]/.test(s) ? s[0].toUpperCase() + s.slice(1) : s;
+const slug = s => s.toLowerCase().replace(/<[^>]+>/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { state = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+const list = document.getElementById("list");
+const items = [];
+const check = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
+
+DATA.sections.forEach(sec => {
+  const g = document.createElement("section");
+  g.className = "group";
+  g.innerHTML = `<h2>${sec.name} <span class="count"></span></h2>`;
+  sec.items.forEach(it => {
+    const id = slug(it.raw);
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <div class="row">
+        <button type="button" class="box" role="checkbox" aria-checked="false" aria-label="Done">${check}</button>
+        <button type="button" class="toggle" aria-expanded="false"><span class="t">${it.t}</span><span class="chev" aria-hidden="true">&rsaquo;</span></button>
+        <button type="button" class="na-btn" aria-pressed="false" title="Does not apply to this codebase">N/A</button>
+      </div>
+      <div class="body"><dl>
+        <dt>What</dt><dd>${cap(it.what)}</dd>
+        <dt>Check</dt><dd>${cap(it.check)}</dd>
+        <dt>Fix</dt><dd>${cap(it.fix)}</dd>
+      </dl></div>`;
+    const rec = { id, el, sec: g, raw: it.raw };
+    el.querySelector(".box").onclick = () => { state[id] = state[id] === "done" ? undefined : "done"; update(); };
+    el.querySelector(".na-btn").onclick = () => { state[id] = state[id] === "na" ? undefined : "na"; update(); };
+    el.querySelector(".toggle").onclick = () => {
+      const open = el.classList.toggle("open");
+      el.querySelector(".toggle").setAttribute("aria-expanded", open);
+    };
+    items.push(rec);
+    g.appendChild(el);
+  });
+  list.appendChild(g);
+});
+
+const hideDone = document.getElementById("hide-done");
+hideDone.onchange = update;
+
+function update() {
+  for (const k in state) if (!state[k]) delete state[k];
+  save();
+  let done = 0, na = 0;
+  items.forEach(r => {
+    const s = state[r.id];
+    r.el.classList.toggle("checked", s === "done");
+    r.el.classList.toggle("na", s === "na");
+    r.el.querySelector(".box").setAttribute("aria-checked", s === "done");
+    r.el.querySelector(".na-btn").setAttribute("aria-pressed", s === "na");
+    r.el.classList.toggle("hidden", hideDone.checked && !!s);
+    if (s === "done") done++; if (s === "na") na++;
+  });
+  document.querySelectorAll(".group").forEach(g => {
+    const own = items.filter(r => r.sec === g);
+    const left = own.filter(r => !state[r.id]).length;
+    g.querySelector(".count").textContent = `· ${own.length - left} of ${own.length}`;
+    g.style.display = hideDone.checked && left === 0 ? "none" : "";
+  });
+  const total = items.length;
+  document.getElementById("progress").innerHTML =
+    `<strong>${done + na} of ${total}</strong> done` + (na ? ` (${na} N/A)` : "");
+  document.getElementById("bar-done").style.width = (done / total * 100) + "%";
+  document.getElementById("bar-na").style.width = (na / total * 100) + "%";
+  document.getElementById("empty").style.display = hideDone.checked && done + na === total ? "block" : "none";
+}
+
+const expandBtn = document.getElementById("expand");
+expandBtn.onclick = () => {
+  const open = expandBtn.textContent === "Open all";
+  items.forEach(r => {
+    r.el.classList.toggle("open", open);
+    r.el.querySelector(".toggle").setAttribute("aria-expanded", open);
+  });
+  expandBtn.textContent = open ? "Close all" : "Open all";
+};
+
+const toast = msg => {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 1800);
+};
+
+document.getElementById("copy").onclick = async () => {
+  let md = `# ${DATA.title} checklist\n`;
+  DATA.sections.forEach(sec => {
+    md += `\n## ${sec.name}\n\n`;
+    sec.items.forEach(it => {
+      const s = state[slug(it.raw)];
+      md += `- [${s === "done" ? "x" : " "}] ${it.raw}${s === "na" ? " (N/A)" : ""}\n`;
+    });
+  });
+  try { await navigator.clipboard.writeText(md); toast("Copied as Markdown"); }
+  catch (e) { toast("Copy failed. Your browser blocked clipboard access."); }
+};
+
+document.getElementById("reset").onclick = () => {
+  if (!Object.keys(state).length) return;
+  if (confirm("Clear every tick and N/A on this checklist?")) { state = {}; update(); }
+};
+
+update();
+</script>
+</body>
+</html>
