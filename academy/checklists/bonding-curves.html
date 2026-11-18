@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bonding curve launchpad checklist · Heavyw8t's Security Academy</title>
+<meta name="description" content="A checklist of bugs to look for when auditing a bonding curve launchpad on EVM.">
+<link rel="icon" href="../assets/logo.jpg">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+  :root { --green: #4cc38a; --green-dim: rgba(76, 195, 138, 0.12); --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  main { max-width: 820px; }
+  .intro { margin-bottom: 28px; }
+
+  .bar {
+    position: sticky; top: 0; z-index: 5; background: var(--bg);
+    padding: 12px 0; margin-bottom: 28px; border-bottom: 1px solid var(--border);
+  }
+  .progress-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .progress-text { font-size: 0.92rem; color: var(--muted); }
+  .progress-text strong { color: var(--text); font-weight: 600; }
+  .track { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; display: flex; }
+  .track .done { background: var(--orange); transition: width .2s; }
+  .track .na { background: #4a4a4a; transition: width .2s; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .tools button, .tools label {
+    font: inherit; font-size: 0.85rem; color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tools button:hover, .tools label:hover { border-color: var(--orange); }
+  .tools input { accent-color: var(--orange); margin: 0; }
+  .tools .reset { color: var(--muted); }
+
+  .group { margin-bottom: 36px; }
+  .group h2 .count { color: var(--muted); font-weight: 400; letter-spacing: 0.04em; }
+  .item {
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+    margin-bottom: 8px; transition: border-color .15s, opacity .15s;
+  }
+  .item.checked { border-color: rgba(255, 122, 26, 0.35); }
+  .item.na { opacity: 0.5; }
+  .item.hidden { display: none; }
+  .row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; }
+  .box {
+    flex: none; width: 22px; height: 22px; margin-top: 1px; border-radius: 5px; cursor: pointer;
+    border: 2px solid #555; background: transparent; display: grid; place-items: center; padding: 0;
+  }
+  .box:hover { border-color: var(--orange); }
+  .box svg { width: 14px; height: 14px; stroke: var(--bg); stroke-width: 3; fill: none; visibility: hidden; }
+  .item.checked .box { background: var(--orange); border-color: var(--orange); }
+  .item.checked .box svg { visibility: visible; }
+  .toggle {
+    flex: 1; min-width: 0; text-align: left; font: inherit; color: var(--text); background: none;
+    border: 0; padding: 0; cursor: pointer; display: flex; justify-content: space-between; gap: 10px;
+  }
+  .toggle .t { font-weight: 600; line-height: 1.45; }
+  .item.checked .toggle .t { color: var(--muted); }
+  .item.na .toggle .t { text-decoration: line-through; }
+  .toggle .chev { flex: none; color: var(--muted); transition: transform .15s; margin-top: 1px; }
+  .item.open .toggle .chev { transform: rotate(90deg); color: var(--orange); }
+  .na-btn {
+    flex: none; font: inherit; font-size: 0.75rem; color: var(--muted); background: none; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; margin-top: 1px;
+  }
+  .na-btn:hover { color: var(--text); border-color: var(--muted); }
+  .item.na .na-btn { color: var(--text); border-color: var(--muted); background: var(--surface-2); }
+  .body { display: none; padding: 0 14px 14px 48px; }
+  .item.open .body { display: block; }
+  .body dl { margin: 0; display: grid; grid-template-columns: 56px 1fr; gap: 8px 12px; }
+  .body dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--orange); padding-top: 3px; }
+  .body dd { margin: 0; color: #d4d4d4; font-size: 0.95rem; }
+  code {
+    font-family: var(--mono); font-size: 0.86em; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere;
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--surface-2);
+    border: 1px solid var(--orange); border-radius: 8px; padding: 8px 14px; font-size: 0.9rem;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .toast.show { opacity: 1; }
+  .empty { color: var(--muted); font-size: 0.92rem; display: none; }
+
+  @media (max-width: 600px) {
+    .body { padding-left: 14px; }
+    .body dl { grid-template-columns: 1fr; gap: 2px; }
+    .body dd { margin-bottom: 8px; }
+  }
+</style>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Heavyw8t's Security Academy">
+<meta property="og:title" content="Bonding curve launchpad checklist">
+<meta property="og:description" content="A checklist of bugs to look for when auditing a bonding curve launchpad on EVM.">
+<meta property="og:url" content="https://heavyw8t.github.io/academy/checklists/bonding-curves.html">
+<meta property="og:image" content="https://heavyw8t.github.io/academy/assets/banner.png">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Heavyw8t's Security Academy banner">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@heavyw8t_">
+<meta name="twitter:creator" content="@heavyw8t_">
+</head>
+<body>
+<main>
+  <a class="back" href="index.html">&larr; Checklists</a>
+  <h1 class="page-title">Bonding curve launchpads</h1>
+  <div class="intro">
+    <p>Launchpads sell a new token on a bonding curve, then graduate it into a DEX pool once the curve sells out. The <a href="../protocols/bonding-curves.html">bonding curves lesson</a> explains the mechanics. This list covers EVM launchpads.</p>
+    <p>These are the things to check on every bonding curve launchpad audit, and to get right when you write a launchpad. Go through the <a href="every-audit.html">every audit</a> list as well.</p>
+    <p>Tick an item once you have checked it, or mark it N/A when it does not apply. Open an item to see what goes wrong, what to look at, and one way to fix it. The fixes are suggestions: whether one fits depends on the protocol's architecture, design choices and intent.</p>
+  </div>
+
+  <div class="bar">
+    <div class="progress-row">
+      <span class="progress-text" id="progress" aria-live="polite"></span>
+    </div>
+    <div class="track" aria-hidden="true"><div class="done" id="bar-done"></div><div class="na" id="bar-na"></div></div>
+    <div class="tools">
+      <button type="button" id="expand">Open all</button>
+      <label><input type="checkbox" id="hide-done"> Hide done</label>
+      <button type="button" id="copy">Copy as Markdown</button>
+      <button type="button" id="reset" class="reset">Reset</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+  <p class="empty" id="empty">Every item is done. Untick "Hide done" to see them again.</p>
+
+  <footer>This website is purely for educational purposes.</footer>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const DATA = {"title": "Bonding curve launchpads", "intro": "Launchpads sell a new token on a bonding curve, then graduate it into a DEX pool once the curve sells out. The <a href=\"../protocols/bonding-curves.html\">bonding curves lesson<\/a> explains the mechanics. This list covers EVM launchpads.", "sections": [{"name": "Graduation", "items": [{"t": "Pool pre-creation DoS", "what": "the launchpad graduates into a pool whose address or key anyone can compute. An attacker creates or initializes that pool first, at a wrong price, and adds a little liquidity. Graduation then reverts because the pool exists, or adds the curve's liquidity at the attacker's price, and the attacker buys the token cheap from the pool.", "check": "can anyone else create the target pair, or initialize the target pool, before graduation? Does graduation still work when the pool exists, with a set price and with or without liquidity? On Uniswap V4, does the hook's <code>beforeInitialize<\/code> restrict the caller?", "fix": "restrict pool creation to the launchpad, for example in <code>beforeInitialize<\/code>. Otherwise make graduation handle an existing pool: move its price to the curve's final price before adding liquidity, or use a pool key the attacker cannot predict.", "raw": "Pool pre-creation DoS"}, {"t": "Graduation sandwich", "what": "a bot sees the buy that will graduate the curve. It buys just before it at the curve price, and sells right after the pool opens at a higher price. The pool's first liquidity providers and the last buyer pay the difference.", "check": "the pool's opening price against the curve's final price, computed from the token and quote amounts graduation actually deposits after any fee or withheld tokens. Write a test that buys the last tokens on the curve and sells them into the new pool right after graduation: it must lose money.", "fix": "compute the pool amounts so the pool opens at the curve's final price. If it opens higher, the bot sells at a profit; if it opens lower, anyone can buy the token cheap from the pool.", "raw": "Graduation sandwich"}, {"t": "Pre-graduation donation", "what": "the curve or the graduation step reads token balances with <code>balanceOf<\/code>. An attacker sends tokens or quote to the curve contract, or to the future pool, and changes the price or the amounts that graduation deposits.", "check": "every balance the curve and the graduation step read with <code>balanceOf<\/code>, and how graduation handles a pool that already holds tokens.", "fix": "track reserves in storage and use those values at graduation. Handle or sweep tokens already sitting in the pool.", "raw": "Pre-graduation donation"}, {"t": "Graduation reentrancy", "what": "the graduating buy refunds excess quote, or transfers a token with hooks, before graduation state is final. The buyer reenters and buys again on a curve that should be closed, or triggers graduation a second time.", "check": "every external call in the graduating buy and in graduation, in order, and the state written before each one. Does one reentrancy guard cover buy, sell and graduation?", "fix": "write all graduation state before any refund or external call, and put a shared <code>nonReentrant<\/code> guard on buy, sell and graduation.", "raw": "Graduation reentrancy"}, {"t": "Stuck graduation", "what": "the buy that crosses the threshold does not graduate the curve. Buys keep running at the curve price until someone graduates it by hand, or graduation fails partway and leaves state that blocks a retry. The curve's funds stay locked.", "check": "whether the crossing buy graduates in the same transaction, or blocks trading until graduation completes. Trace each graduation step: if a later step reverts, what state stays behind, and can anyone retry?", "fix": "graduate atomically in the crossing buy. Make graduation all or nothing, or record its progress so a retry can finish it.", "raw": "Stuck graduation"}, {"t": "Exact-amount migration check", "what": "rounding in many small buys moves the token and quote amounts at graduation away from the amounts predicted at launch. A check that expects the exact predicted amounts reverts, and graduation never completes.", "check": "every <code>==<\/code> check on reserve or balance amounts in graduation.", "fix": "compare against a minimum or a small range, or compute the pool amounts from the tracked reserves.", "raw": "Exact-amount migration check"}, {"t": "Unlocked migration LP", "what": "graduation mints LP tokens or an LP position to the creator, the admin or the launchpad, and nothing burns or locks it. Whoever holds it removes the liquidity and leaves buyers with a token that has no market.", "check": "who receives the LP tokens or position NFT at graduation, and who can move them afterwards.", "fix": "burn the LP tokens, or send them to a lock contract, in the same transaction that adds the liquidity.", "raw": "Unlocked migration LP"}, {"t": "Pool liquidity limits", "what": "the launchpad passes its own checks, but the DEX reverts on a limit only it enforces. On Uniswap V4, <code>modifyLiquidity<\/code> reverts above the maximum liquidity per tick, or when a <code>uint128<\/code> amount does not fit in an <code>int128<\/code>. The revert repeats on every attempt, so graduation never completes.", "check": "the liquidity added at graduation against <code>maxLiquidityPerTick<\/code> for the tick spacing, and every cast from <code>uint128<\/code> to <code>int128<\/code>.", "fix": "cap the liquidity per tick before the mint, split it across ranges if needed, use safe casts, and add a recovery path for a failed mint.", "raw": "Pool liquidity limits"}, {"t": "Trading after graduation", "what": "graduation moves the reserves to the pool, but the curve's buy and sell functions still run. A user buys from the curve below the pool price, or sells into the curve and takes quote that belongs to the pool.", "check": "every buy, sell and quote function for a check on the graduated flag.", "fix": "set the graduated flag at the start of graduation, and revert every curve trade once it is set.", "raw": "Trading after graduation"}, {"t": "Swap caps that ignore pool depth", "what": "a fixed cap such as \"at most 1 ETH per swap\" protects a deep pool, but not a new pool with a few ETH of liquidity. A swap at the cap still moves the price a lot, so bots can still sandwich it.", "check": "every fixed-amount cap in the hook or launchpad, compared with the pool's liquidity just after graduation.", "fix": "cap swaps by price impact or by a share of current liquidity instead of a fixed amount.", "raw": "Swap caps that ignore pool depth"}]}, {"name": "Buying and selling on the curve", "items": [{"t": "Missing slippage and deadline", "what": "a buy or sell has no minimum output and no deadline. A bot trades just before and after the user and keeps the difference, or a validator holds the transaction until the price is worse.", "check": "every buy and sell entry point, including router and helper contracts. Does each take a user-set <code>minOut<\/code> and <code>deadline<\/code>, and check them against the final amount the user receives?", "fix": "take <code>minOut<\/code> and <code>deadline<\/code> as arguments, and revert when either check fails.", "raw": "Missing slippage and deadline"}, {"t": "Terminal buy overflow", "what": "the last buy asks for more tokens than the curve has left. The curve fills what remains but keeps all the quote, so the buyer overpays. Or the buy overfills past the cap, and the excess counts as reserve and inflates the liquidity sent to the pool.", "check": "what happens in the buy path when the requested amount is larger than the remaining supply. Does the quote charged match the tokens delivered?", "fix": "clamp the last buy to the remaining supply, recompute the cost of the clamped fill, and refund the rest.", "raw": "Terminal buy overflow"}, {"t": "Terminal buy slippage", "what": "the last buy uses less quote than the user sent, because only a few tokens are left. If the slippage check compares the tokens out with what the full amount would buy, the buy always reverts and the curve cannot finish. If the check is skipped for this case, the user has no protection.", "check": "how the minimum output is compared on the buy that completes the curve.", "fix": "scale the minimum output to the quote actually used, or compare the price paid instead of the token amount.", "raw": "Terminal buy slippage"}, {"t": "Wrong rounding direction", "what": "a buy rounds the tokens out up, or the quote in down, or a sell rounds the quote out up. A user buys and sells in a loop and takes a little more each time, and the last sellers find the curve short.", "check": "every division in the buy, sell and quote functions.", "fix": "round in the curve's favor at each division: tokens out and quote out down, quote in up. Use <code>mulDivDown<\/code> and <code>mulDivUp<\/code> to make the direction explicit.", "raw": "Wrong rounding direction"}, {"t": "Round-trip profit", "what": "a buy followed by a sell of the same tokens returns more quote than the buy cost. Rounding, a fee taken at different points, or a sell priced from the wrong reserve can each cause it. An attacker repeats the round trip and drains the curve.", "check": "write a test that buys and then sells the tokens bought, at several curve positions and amounts, including amounts of a few wei. The quote back must never be more than the quote paid.", "fix": "fix the rounding or the pricing until the round trip always loses at least the fee.", "raw": "Round-trip profit"}, {"t": "Virtual and real reserve desync", "what": "the curve prices trades from virtual reserves and pays out from real reserves. A trade updates one but not the other, or the two move by different amounts. Later prices are wrong, and the curve owes more than it holds.", "check": "every buy, sell and graduation path. Do virtual and real reserves change together, by the same computed amounts? Does the tracked real reserve match the contract's balance?", "fix": "update virtual and real reserves in the same function, from the same amounts, and assert the relation between them.", "raw": "Virtual and real reserve desync"}, {"t": "One-wei curve freeze", "what": "a buy must return more than 0 tokens. An attacker pushes the curve to a point where 1 wei of quote is missing. A buy for that last wei rounds to 0 tokens and reverts, so nobody can complete the curve.", "check": "what happens when the quote left to finish the curve buys 0 tokens after rounding.", "fix": "let the last buy complete the curve even when it buys 0 tokens.", "raw": "One-wei curve freeze"}, {"t": "Fee asymmetry", "what": "the buy path takes the fee after the curve calculation and the sell path takes it before, or one side skips it. Each round trip moves value out of the curve, or users route trades through the side that charges less.", "check": "where buy and sell take the fee relative to the curve calculation, and whether every entry point charges it.", "fix": "take the fee at the same point in both paths, and document the choice.", "raw": "Fee asymmetry"}]}, {"name": "Launch setup", "items": [{"t": "Invalid launch parameters", "what": "a creator launches with zero tokens on the curve, all supply to the creator, or initial virtual reserves that do not match the supply the curve sells. Every buy reverts and buyer funds stay stuck, or the curve sells tokens it does not hold, or the creator holds enough to rug.", "check": "the validation of every launch parameter: curve supply, creator allocation, initial virtual reserves and graduation threshold.", "fix": "reject a zero curve supply, cap the creator allocation, and derive the initial virtual reserves from the supply the curve sells.", "raw": "Invalid launch parameters"}, {"t": "Retained creator authority", "what": "the creator keeps the right to mint, pause transfers, blocklist addresses or change fees after graduation. The creator mints new tokens and dumps them into the pool, or blocks sells.", "check": "every privileged function on the launched token and on its pool or hook, and who holds each role after graduation.", "fix": "deploy the token with a fixed supply and no owner, or revoke every creator role at launch or at graduation.", "raw": "Retained creator authority"}, {"t": "Launch sniping", "what": "the creator creates the token and makes the first buy in separate transactions. A bot buys between the two, before the creator's first buy lands, and sells to the creator and early buyers at a higher price.", "check": "whether the token is created and the creator's first buy runs in the same transaction.", "fix": "create the token and run the creator's first buy atomically.", "raw": "Launch sniping"}]}, {"name": "Funds and fees", "items": [{"t": "Refund via <code>transfer<\/code>", "what": "the last buy refunds overpaid ETH with <code>transfer<\/code> or <code>send<\/code>, which forward only 2300 gas. A smart contract wallet with logic in <code>receive<\/code> runs out of gas, the refund fails, and the buy reverts.", "check": "every native refund in the buy and graduation paths.", "fix": "send refunds with <code>call{value: amount}(\"\")<\/code>, and protect the function against reentrancy.", "raw": "Refund via `transfer`"}, {"t": "Fee recipient DoS", "what": "every trade pushes the fee straight to the creator or the protocol. A creator sets a fee recipient that reverts on receive, or that the quote token blocklists, and every buy and sell on that curve reverts.", "check": "every transfer to a fee recipient inside buy, sell and graduation, and who sets the recipient.", "fix": "record fees in storage and let recipients claim them later.", "raw": "Fee recipient DoS"}, {"t": "Unbounded fee setter", "what": "an admin or creator raises the trading fee to 100 percent, or changes it on curves that are already live. Buyers and sellers on those curves get nothing back.", "check": "every fee setter, its maximum, and whether a change applies to existing curves.", "fix": "cap fees at a hard-coded maximum, and store each curve's fee when it launches.", "raw": "Unbounded fee setter"}, {"t": "<code>msg.value<\/code> mishandling", "what": "a payable function reads <code>msg.value<\/code> inside a loop or in several calls of one batch, counting the same ETH more than once. Or a function accepts ETH that it never uses or refunds, and the ETH stays in the contract. Or one contract in the flow cannot receive ETH, so ETH buys always revert.", "check": "every payable function. Is <code>msg.value<\/code> used once, compared with the amount needed, and the excess refunded? Follow native ETH through every contract in the flow.", "fix": "read <code>msg.value<\/code> once, check it against the total needed, refund the excess, and reject ETH on functions that do not use it.", "raw": "`msg.value` mishandling"}]}]};
+const KEY = "academy-checklist-bonding-curves";
+
+const cap = s => /^[a-z]/.test(s) ? s[0].toUpperCase() + s.slice(1) : s;
+const slug = s => s.toLowerCase().replace(/<[^>]+>/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { state = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+const list = document.getElementById("list");
+const items = [];
+const check = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
+
+DATA.sections.forEach(sec => {
+  const g = document.createElement("section");
+  g.className = "group";
+  g.innerHTML = `<h2>${sec.name} <span class="count"></span></h2>`;
+  sec.items.forEach(it => {
+    const id = slug(it.raw);
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <div class="row">
+        <button type="button" class="box" role="checkbox" aria-checked="false" aria-label="Done">${check}</button>
+        <button type="button" class="toggle" aria-expanded="false"><span class="t">${it.t}</span><span class="chev" aria-hidden="true">&rsaquo;</span></button>
+        <button type="button" class="na-btn" aria-pressed="false" title="Does not apply to this codebase">N/A</button>
+      </div>
+      <div class="body"><dl>
+        <dt>What</dt><dd>${cap(it.what)}</dd>
+        <dt>Check</dt><dd>${cap(it.check)}</dd>
+        <dt>Fix</dt><dd>${cap(it.fix)}</dd>
+      </dl></div>`;
+    const rec = { id, el, sec: g, raw: it.raw };
+    el.querySelector(".box").onclick = () => { state[id] = state[id] === "done" ? undefined : "done"; update(); };
+    el.querySelector(".na-btn").onclick = () => { state[id] = state[id] === "na" ? undefined : "na"; update(); };
+    el.querySelector(".toggle").onclick = () => {
+      const open = el.classList.toggle("open");
+      el.querySelector(".toggle").setAttribute("aria-expanded", open);
+    };
+    items.push(rec);
+    g.appendChild(el);
+  });
+  list.appendChild(g);
+});
+
+const hideDone = document.getElementById("hide-done");
+hideDone.onchange = update;
+
+function update() {
+  for (const k in state) if (!state[k]) delete state[k];
+  save();
+  let done = 0, na = 0;
+  items.forEach(r => {
+    const s = state[r.id];
+    r.el.classList.toggle("checked", s === "done");
+    r.el.classList.toggle("na", s === "na");
+    r.el.querySelector(".box").setAttribute("aria-checked", s === "done");
+    r.el.querySelector(".na-btn").setAttribute("aria-pressed", s === "na");
+    r.el.classList.toggle("hidden", hideDone.checked && !!s);
+    if (s === "done") done++; if (s === "na") na++;
+  });
+  document.querySelectorAll(".group").forEach(g => {
+    const own = items.filter(r => r.sec === g);
+    const left = own.filter(r => !state[r.id]).length;
+    g.querySelector(".count").textContent = `· ${own.length - left} of ${own.length}`;
+    g.style.display = hideDone.checked && left === 0 ? "none" : "";
+  });
+  const total = items.length;
+  document.getElementById("progress").innerHTML =
+    `<strong>${done + na} of ${total}</strong> done` + (na ? ` (${na} N/A)` : "");
+  document.getElementById("bar-done").style.width = (done / total * 100) + "%";
+  document.getElementById("bar-na").style.width = (na / total * 100) + "%";
+  document.getElementById("empty").style.display = hideDone.checked && done + na === total ? "block" : "none";
+}
+
+const expandBtn = document.getElementById("expand");
+expandBtn.onclick = () => {
+  const open = expandBtn.textContent === "Open all";
+  items.forEach(r => {
+    r.el.classList.toggle("open", open);
+    r.el.querySelector(".toggle").setAttribute("aria-expanded", open);
+  });
+  expandBtn.textContent = open ? "Close all" : "Open all";
+};
+
+const toast = msg => {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 1800);
+};
+
+document.getElementById("copy").onclick = async () => {
+  let md = `# ${DATA.title} checklist\n`;
+  DATA.sections.forEach(sec => {
+    md += `\n## ${sec.name}\n\n`;
+    sec.items.forEach(it => {
+      const s = state[slug(it.raw)];
+      md += `- [${s === "done" ? "x" : " "}] ${it.raw}${s === "na" ? " (N/A)" : ""}\n`;
+    });
+  });
+  try { await navigator.clipboard.writeText(md); toast("Copied as Markdown"); }
+  catch (e) { toast("Copy failed. Your browser blocked clipboard access."); }
+};
+
+document.getElementById("reset").onclick = () => {
+  if (!Object.keys(state).length) return;
+  if (confirm("Clear every tick and N/A on this checklist?")) { state = {}; update(); }
+};
+
+update();
+</script>
+</body>
+</html>

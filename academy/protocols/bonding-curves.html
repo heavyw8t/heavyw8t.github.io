@@ -790,6 +790,7 @@ footer{font:12px var(--mono);color:var(--muted);text-align:center}
         <details><summary>Details</summary><dl><dt>What</dt><dd>The launchpad's own checks pass, but <code>modifyLiquidity</code> reverts on limits that only V4 core checks. The total liquidity of all positions that use a tick as a boundary can be at most <code>maxLiquidityPerTick</code>, and <code>uint128</code> amounts have to fit into <code>int128</code> deltas. If graduation goes over either limit, it reverts every time.</dd><dt>Check</dt><dd>Compare the liquidity graduation adds with <code>maxLiquidityPerTick</code> for the pool's tick spacing. Follow every cast from <code>uint128</code> to <code>int128</code> for amounts and liquidity.</dd><dt>Fix</dt><dd>Calculate the liquidity before minting and keep it under the per-tick limit, spreading it over several ranges if needed. Use checked casts, and give graduation a way to recover if the deposit still fails.</dd></dl></details></li>
     </ul>
   </div>
+  <p>The <a href="../checklists/bonding-curves.html">bonding curve launchpads checklist</a> has the full list of checks for a launchpad audit.</p>
 </section>
 
 <!-- COMPARE -->
