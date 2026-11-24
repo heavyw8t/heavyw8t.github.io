@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>How to NOT become an AI spammer · Heavyw8t's Security Academy</title>
+<meta name="description" content="Six approaches to validate AI findings before submitting them, each with a prompt.">
+<link rel="icon" href="../assets/logo.jpg">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Heavyw8t's Security Academy">
+<meta property="og:title" content="How to NOT become an AI spammer">
+<meta property="og:description" content="Six approaches to validate AI findings before submitting them, each with a prompt.">
+<meta property="og:url" content="https://heavyw8t.github.io/academy/ai/judge-your-findings.html">
+<meta property="og:image" content="https://heavyw8t.github.io/academy/assets/banner.png">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Heavyw8t's Security Academy banner">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@heavyw8t_">
+<meta name="twitter:creator" content="@heavyw8t_">
+<link rel="stylesheet" href="../vendor/fonts/fonts.css">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0A0A0A; --grid:rgba(255,255,255,.035); --card:#141414; --ink:#F2F2F2; --muted:#A3A3A3; --rule:#2A2A2A; --code:#0F0F0F;
+  --tok:#5B9DFF; --tok-soft:rgba(91,157,255,.14);
+  --res:#B58CFF; --res-soft:rgba(181,140,255,.14);
+  --key:#FF7A1A; --key-soft:rgba(255,122,26,.14);
+  --ok:#4CC38A; --ok-soft:rgba(76,195,138,.12); --bad:#F25F5C; --bad-soft:rgba(242,95,92,.12);
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --serif:"Literata",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:70px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+body{background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:28px 28px;color:var(--ink);font:400 17px/1.68 var(--serif);padding-inline:16px;padding-block:72px 80px}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;line-height:1.12;margin:0}
+p{margin:0}
+a{color:var(--tok)}
+:focus-visible{outline:2px solid var(--key);outline-offset:2px;border-radius:4px}
+ .vr{color:var(--res)} .vk{color:var(--key)}
+b.vr,b.vk{font-weight:600}
+/* top bar */
+.topbar{position:fixed;inset:0 0 auto 0;z-index:20;padding-top:env(safe-area-inset-top,0px);background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule)}
+.bar{height:3px;background:var(--rule)}
+.bar i{display:block;height:100%;width:0;background:var(--key)}
+.topin{max-width:1100px;margin:0 auto;padding:8px 16px;display:flex;gap:16px;align-items:center;justify-content:space-between;font:12px/1.4 var(--mono);color:var(--muted)}
+.topin strong{font:700 14px var(--display);color:var(--ink);letter-spacing:.01em;white-space:nowrap}
+#score{text-align:right;font-variant-numeric:tabular-nums}
+#score b{color:var(--ink)}
+@media(max-width:600px){.topin strong{display:none}}
+.layout{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:56px;justify-content:center}
+@media(min-width:1080px){.layout{grid-template-columns:190px minmax(0,720px)}}
+.rail{display:none}
+@media(min-width:1080px){.rail{display:block;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);align-self:start}}
+.rail ol{list-style:none;margin:0;padding:0;display:grid;gap:2px;border-left:1px solid var(--rule)}
+.rail a{display:flex;gap:10px;padding:5px 12px;font:13px/1.3 var(--display);color:var(--muted);text-decoration:none;border-left:2px solid transparent;margin-left:-1px}
+.rail a span{font:11px/1.6 var(--mono);min-width:20px}
+.rail a:hover{color:var(--ink)}
+.rail a.on{color:var(--ink);border-left-color:var(--key);font-weight:600}
+main{min-width:0;display:grid;gap:30px}
+.paper{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:clamp(20px,4vw,40px);display:grid;gap:22px;min-width:0}
+.prose{display:grid;gap:14px}
+.eyebrow{font:600 11.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lead{font-size:19px;line-height:1.6}
+/* hero */
+.hero h1{font-size:clamp(38px,7vw,62px);font-weight:800;letter-spacing:-.02em}
+.hero h1 em{font-style:normal;color:var(--key)}
+.hero svg{width:100%;height:auto;display:block}
+/* chapter header */
+.chap{display:grid;gap:10px;padding-top:6px}
+.mark{font:800 clamp(88px,16vw,150px)/.8 var(--display);letter-spacing:-.04em}
+.mark small{font:600 clamp(18px,3vw,24px) var(--display);letter-spacing:0;margin-left:10px;color:var(--ink);vertical-align:top}
+.chap h2{font-size:clamp(26px,4.4vw,34px);font-weight:700;letter-spacing:-.01em;max-width:30ch}
+h3{font-size:19px;font-weight:700;letter-spacing:.005em}
+/* terms */
+dfn{font-style:normal;text-decoration:underline dotted;text-decoration-thickness:1.5px;text-underline-offset:3px;cursor:help;text-decoration-color:var(--muted)}
+#tip{position:absolute;z-index:40;max-width:300px;background:var(--card);color:var(--ink);font:13.5px/1.5 var(--serif);padding:10px 12px;border:1px solid var(--key);border-radius:8px;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.6)}
+#tip b{font-family:var(--display);display:block;margin-bottom:2px;color:var(--key)}
+/* formula */
+/* symbols */
+.syms{border:1px solid var(--rule);border-radius:10px;padding:16px 18px}
+.syms h4{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.syms dl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:0}
+.syms dt{font:italic 19px/1.4 var(--serif);text-align:right;min-width:44px}
+.syms dd{margin:0;font-size:15.5px;line-height:1.5;align-self:center}
+.plain{border-left:4px solid var(--res);background:var(--res-soft);padding:14px 18px;border-radius:0 10px 10px 0;font-size:16px}
+.plain b{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;display:block;color:var(--res);margin-bottom:4px}
+/* figure */
+.figure{border:1px solid var(--rule);border-radius:12px;padding:16px;display:grid;gap:14px;min-width:0}
+.figure figcaption{font-size:15px;color:var(--muted)}
+.figure figcaption b{font:700 15px var(--display);color:var(--ink);margin-right:4px}
+.figure svg{width:100%;height:auto;display:block;overflow:visible}
+.ctls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px}
+.ctl{display:grid;gap:4px;font:12.5px var(--mono);color:var(--muted)}
+.ctl span{display:flex;justify-content:space-between;gap:8px}
+.ctl b{color:var(--ink);font-variant-numeric:tabular-nums}
+.ctl input{width:100%;accent-color:var(--tok)}
+.ctl.r input{accent-color:var(--res)} .ctl.k input{accent-color:var(--key)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.tile{border:1px solid var(--rule);border-radius:8px;padding:9px 12px;display:grid;gap:2px;min-width:0}
+.tile .tl{font:11px var(--mono);color:var(--muted);letter-spacing:.04em}
+.tile .tv{font:600 19px/1.3 var(--mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile.key{border-color:var(--key);background:var(--key-soft)} .tile.key .tv{color:var(--key)}
+.tv.pos{color:var(--ok)} .tv.neg{color:var(--bad)}
+/* svg */
+/* quiz */
+.quiz{border:1px solid var(--key);border-radius:12px;padding:18px;display:grid;gap:12px}
+.quiz .qh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.quiz .qtag{font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.quiz .qstate{font:12px var(--mono);color:var(--muted)}
+.quiz .q{font-size:17px}
+.opts{display:grid;gap:8px}
+.opts button{font:15.5px/1.45 var(--serif);text-align:left;color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:10px 14px 10px 38px;cursor:pointer;display:block;position:relative}
+.opts button code{font-size:13.5px}
+.opts button::before{content:attr(data-k);font:600 12px var(--mono);color:var(--muted);text-transform:uppercase;position:absolute;left:14px;top:13px}
+.opts button:hover:not(:disabled){border-color:var(--muted)}
+.opts button:disabled{cursor:default}
+.opts button.right{border-color:var(--ok);background:var(--ok-soft)}
+.opts button.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.explain{font-size:15.5px;border-top:1px solid var(--rule);padding-top:10px}
+.explain .verdict{font-family:var(--display);font-weight:700;margin-right:6px}
+.verdict.ok{color:var(--ok)} .verdict.no{color:var(--bad)}
+.explain dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0}
+.explain dt{font:600 12px/1.9 var(--mono);color:var(--muted);text-transform:uppercase}
+.explain dd{margin:0}
+.fb{font-size:15px;min-height:1.4em}
+.fb.ok{color:var(--ok)} .fb.no{color:var(--bad)}
+/* code */
+pre.sol{margin:0;font:13px/1.6 var(--mono);background:var(--code);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;overflow-x:auto;tab-size:4}
+pre.segs .seg{display:block}
+pre.segs .gap{height:1.6em}
+pre.segs a.seg{color:inherit;text-decoration:none;--hl:color-mix(in srgb,var(--key) 14%,var(--code));box-shadow:-11px 0 0 var(--code),-13px 0 0 var(--rule)}
+pre.segs a.seg:hover,pre.segs a.seg:focus-visible{background:var(--hl);box-shadow:-11px 0 0 var(--hl),-14px 0 0 var(--key);outline:none}
+.sol .kw{color:var(--tok)} .sol .num{color:var(--res)} .sol .str{color:var(--ok)} .sol .cm{color:var(--muted);font-style:italic}
+code{font-family:var(--mono);font-size:.86em;background:var(--code);border:1px solid var(--rule);border-radius:4px;padding:0 4px}
+/* security */
+/* table */
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+thead th{font:700 13.5px var(--display);background:var(--code)}
+tbody th{font:600 12px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+tr:last-child th,tr:last-child td{border-bottom:0}
+/* dictionary */
+.dictctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+#dq{font:15px var(--mono);padding:9px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--card);color:var(--ink);flex:1 1 220px;min-width:0}
+#dcount{font:12px var(--mono);color:var(--muted)}
+.letters{display:flex;flex-wrap:wrap;gap:4px}
+.letters button{font:600 12px var(--mono);width:28px;height:28px;border-radius:6px;border:1px solid var(--rule);background:var(--card);color:var(--ink);cursor:pointer}
+.letters button:disabled{opacity:.3;cursor:default}
+.letters button.on{background:var(--ink);color:var(--card)}
+#dict{display:grid;gap:4px}
+.dgroup{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding-top:12px;border-top:1px solid var(--rule)}
+.dgroup>span{font:800 28px/1 var(--display);color:var(--muted)}
+.dgroup dl{margin:0;display:grid;gap:10px}
+.dgroup dt{font:700 16px var(--display)}
+.dgroup dd{margin:0;font-size:15.5px;color:var(--ink)}
+.pnote{font-size:15.5px;color:var(--muted)}
+footer{font:12px var(--mono);color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:no-preference){.opts button,.bar i{transition:background-color .15s,border-color .15s,width .1s linear}}
+.explain .verdict{display:block;margin-bottom:4px}
+/* code viewer */
+.sol .kw{color:var(--tok)}
+.sol .at{color:var(--res)}
+.ctl select,.ctl input[type=text]{font:14px var(--mono);padding:7px 9px;border:1px solid var(--rule);border-radius:8px;background:var(--card);color:var(--ink);width:100%}
+.prose h3{font-size:21px;margin-top:12px}
+.prose h4{font-size:17px;margin-top:6px}
+.prose ul{margin:0;padding-left:22px;display:grid;gap:8px}
+
+/* judge-your-findings additions */
+pre.code .ln{display:inline-block;width:2.2em;margin-right:14px;text-align:right;color:var(--muted);opacity:.6;user-select:none}
+pre.out{margin:0;font:13px/1.6 var(--mono);background:var(--code);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;overflow-x:auto;color:var(--ink)}
+pre.out .pass{color:var(--ok)} pre.out .fail{color:var(--bad)} pre.out .dim{color:var(--muted)}
+.promptbox{border:1px solid var(--rule);border-radius:10px;overflow:hidden;min-width:0}
+.promptbox .ph{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 14px;background:var(--code);border-bottom:1px solid var(--rule);font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.copy{font:600 12px var(--mono);color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}
+.copy:hover{border-color:var(--key)}
+pre.prompt{margin:0;font:13.5px/1.65 var(--mono);padding:14px 16px;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card)}
+.slot{color:var(--key)}
+.finding{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.finding .fh{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline}
+.finding .fid{font:800 22px/1 var(--display);color:var(--key)}
+.finding h4{font-size:17px;font-weight:700}
+.finding .loc{font:12px var(--mono);color:var(--muted)}
+.finding p{font-size:15.5px}
+.sev{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--rule);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.sev.high{color:var(--bad);border-color:var(--bad)} .sev.med{color:var(--key);border-color:var(--key)}
+.sev.low{color:var(--tok);border-color:var(--tok)} .sev.info{color:var(--muted)}
+.guess{display:flex;flex-wrap:wrap;gap:6px}
+.guess button{font:600 12.5px var(--mono);color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:5px 12px;cursor:pointer}
+.guess button:hover{border-color:var(--muted)}
+.guess button[aria-pressed=true]{border-color:var(--key);background:var(--key-soft);color:var(--key)}
+.v{font:600 12px var(--mono);letter-spacing:.06em;white-space:nowrap}
+.v.keep{color:var(--ok)} .v.down{color:var(--key)} .v.kill{color:var(--bad)}
+td .hit{color:var(--ok)} td .miss{color:var(--bad)} td .none{color:var(--muted)}
+.tree{margin:0;font:13px/1.7 var(--mono);background:var(--code);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;overflow-x:auto}
+.tree .cm{color:var(--muted)}
+.prose ol{margin:0;padding-left:22px;display:grid;gap:8px}
+td code{white-space:nowrap}
+
+details.more{border:1px solid var(--rule);border-radius:10px;min-width:0}
+details.more summary{cursor:pointer;padding:10px 14px;font:600 14px var(--display);color:var(--ink)}
+details.more summary:hover{color:var(--key)}
+details.more[open] summary{border-bottom:1px solid var(--rule)}
+details.more .promptbox{border:0;border-radius:0}
+.chap .mark+h2{margin-top:4px}
+
+.board{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px}
+@media(max-width:560px){.board{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.chip{border:1px solid var(--rule);border-radius:8px;padding:6px 4px;display:grid;justify-items:center;gap:1px;font:600 11px var(--mono);color:var(--muted);min-width:0}
+.chip b{font:800 17px/1.1 var(--display);color:var(--ink)}
+.chip.high{border-color:var(--bad);color:var(--bad)} .chip.med{border-color:var(--key);color:var(--key)}
+.chip.low{border-color:var(--tok);color:var(--tok)} .chip.info{color:var(--muted)}
+.chip.dead{opacity:.35;border-style:dashed} .chip.dead b{text-decoration:line-through;color:var(--muted)}
+.chip.chg{background:rgba(255,255,255,.06)}
+table.narrow{min-width:0}
+</style>
+<meta name="description" content="Ways to filter AI-generated findings before you submit them, each with a prompt to copy.">
+</head>
+<body>
+<div class="topbar" role="banner">
+  <div class="bar"><i id="prog"></i></div>
+  <div class="topin"><span><a class="back" href="index.html" style="color:var(--key);text-decoration:none;font:600 13px var(--display);margin-right:14px;white-space:nowrap">&larr; AI for security</a><strong>How to NOT become an AI spammer</strong></span></div>
+</div>
+
+<div class="layout">
+<nav class="rail" aria-label="Chapters">
+  <ol>
+    <li><a href="#intro"><span>00</span>Intro</a></li>
+    <li><a href="#matters"><span>01</span>Overview</a></li>
+    <li><a href="#rounds"><span>02</span>Triage rounds</a></li>
+    <li><a href="#council"><span>03</span>Council</a></li>
+    <li><a href="#judge"><span>04</span>Fresh judge</a></li>
+    <li><a href="#tests"><span>05</span>PoCs</a></li>
+    <li><a href="#rules"><span>06</span>Rulesets</a></li>
+    <li><a href="#known"><span>07</span>Known issues</a></li>
+    <li><a href="#example"><span>08</span>Practical example</a></li>
+    <li><a href="#end"><span>09</span>Conclusion</a></li>
+  </ol>
+</nav>
+
+<main>
+<!-- INTRO -->
+<section class="paper hero" id="intro">
+  <h1>How to <em>NOT</em> become an AI spammer</h1>
+  <div class="prose">
+    <p>When you use agents to discover vulnerabilities, they will always return seemingly valid findings, sometimes quite a few. This is because during training the agents are conditioned to provide positive outputs, and get rewarded for getting results and conforming with the user.</p>
+    <p>This is a general problem for any AI user across industries. SRs often use AI to save time or to cover code that goes beyond their own knowledge, which means they then lack the time or knowledge to assess if an issue discovered using AI is actually legit and as severe as initially claimed.</p>
+    <p>In smaller or older models, the training to always provide results led to the models hallucinating code, functionality or conditions that were simply made up, which resulted in completely imaginary issues being presented to the user. With frontier models, this has mostly been solved, but there are still quite a few reasons why relying on AI to find issues causes problems, like issues being impossible in practice, or issues being severely overstated.</p>
+    <p>These can be broken down into a handful of factors: no knowledge of the realistic value ranges, not taking into account the economics of attacks, not knowing what's a design choice or done on purpose, missing context, integrations or docs, and finally unclear rulesets (what classifies as a Crit, High etc.).</p>
+    <p>Here are some prompts to make AI more reliable in your pipeline.</p>
+  </div>
+</section>
+
+<!-- OVERVIEW -->
+<section class="paper" id="matters">
+  <header class="chap">
+    <div class="mark vk">01</div>
+    <h2>Overview</h2>
+  </header>
+  <div class="prose">
+    <p>This lesson covers six approaches to validate issues discovered by AI before they get submitted, each with a prompt that can be used as a base for your own pipeline.</p>
+    <p>The approaches are: triage rounds, where each round asks one narrow question about the issue, a council of agents that all validate the same issue, a fresh judge that never saw the reasoning behind the issue, PoCs that actually run the attack, rulesets that tell the agent how severity is graded, and a check against known issues.</p>
+    <p>There are multiple approaches because each of them catches a different kind of invalid issue: a PoC shows that an attack doesn't work, but it can't tell that the admin is trusted or that the issue was already reported in a previous audit. This is why they are mostly used together, usually with the cheap ones first, so the expensive ones only run on the issues that are left.</p>
+    <p>Every approach has trade-offs, which are listed at the end of each section. Each additional step costs time and tokens, and each filter can also remove a legit issue, which mostly stays unnoticed, since removed issues are usually never looked at again.</p>
+  </div>
+</section>
+
+<!-- TRIAGE ROUNDS -->
+<section class="paper" id="rounds">
+  <header class="chap">
+    <div class="mark vr">02</div>
+    <p class="eyebrow">Approach 1 of 6</p>
+    <h2>Triage rounds</h2>
+  </header>
+  <div class="prose">
+    <p>When a single agent is asked if an issue is valid, it will often miss something and return an incorrect verdict. This is because the agent has to judge the code, the actors and the intent of the team all at once, so triage rounds split this up into three narrow questions, each handled in its own round:</p>
+    <ol>
+      <li>Does the code already stop the attack?</li>
+      <li>Who has to act, and what does it cost them?</li>
+      <li>Did the team do this on purpose?</li>
+    </ol>
+  </div>
+  <div class="promptbox"><div class="ph"><span>Shared rules (paste on top of every check)</span><button type="button" class="copy" data-copy="p-rules">Copy</button></div><pre class="prompt" id="p-rules">Try to break each finding. Give one verdict per finding:
+- KEEP: you could not break it.
+- DOWNGRADE: real, but the severity is too high.
+- KILL: it cannot happen.
+
+A KILL or DOWNGRADE needs proof I can check: a file and line, a quoted rule, or a calculation. No proof means KEEP.
+Use no number you did not read in the code or compute from it.
+Never raise a severity and never add a finding.
+Stay inside your own question.
+
+Code: <span class="slot">[folder]</span>. Findings: <span class="slot">[file]</span>.</pre></div>
+  <div class="promptbox"><div class="ph"><span>Check 1: does the code already stop this?</span><button type="button" class="copy" data-copy="p-c1">Copy</button></div><pre class="prompt" id="p-c1">For each finding:
+1. Open the cited lines. If the code is not what the finding describes, KILL.
+2. Name the public function an ordinary user would call to reach it.
+3. Look for a check that blocks the attack: in the function, its modifiers, parent contracts, libraries and callers.
+4. A check that blocks it completely: KILL and cite it. One that only limits the damage: DOWNGRADE.
+
+Do not judge cost, actors or intent.</pre></div>
+  <div class="prose">
+    <p>Agents often miss protections that are located outside of the function they were pointed at, which is why the first check lists where to look (modifiers, parent contracts, libraries, callers etc.), but this list depends on the codebase and the language, so it has to be adapted.</p>
+  </div>
+  <details class="more"><summary>Round 2 prompt: who acts, and is it worth it?</summary>
+  <div class="promptbox"><div class="ph"><span>Check 2: who acts, and is it worth it?</span><button type="button" class="copy" data-copy="p-c2">Copy</button></div><pre class="prompt" id="p-c2">Trusted roles: <span class="slot">[list]</span>. Everyone else is untrusted.
+Tokens in scope: <span class="slot">[list]</span>.
+
+For each finding:
+1. Name every actor the attack needs.
+2. An untrusted actor does the damage: the severity stays, even if a trusted role made it possible.
+3. A trusted role must act:
+   - on purpose against users: DOWNGRADE to <span class="slot">[lowest tier]</span>.
+   - by honest mistake: DOWNGRADE to <span class="slot">[lowest tier]</span> or KILL, as the ruleset says.
+   - correctly, and the code then misbehaves: the severity stays.
+4. Say what the attacker gains and who loses. Nobody but the attacker loses: KILL.
+5. The attack needs a token that is not in scope: KILL.
+6. Compare cost and gain at the worst supported values: <span class="slot">[e.g. 6 decimals, smallest deposit]</span>. Show the calculation.
+
+Cost and tiny amounts can DOWNGRADE. They cannot KILL.</pre></div>
+  </details>
+  <details class="more"><summary>Round 3 prompt: did the team choose this?</summary>
+  <div class="promptbox"><div class="ph"><span>Check 3: did the team choose this?</span><button type="button" class="copy" data-copy="p-c3">Copy</button></div><pre class="prompt" id="p-c3">Sources: comments, tests, <span class="slot">[docs]</span>, <span class="slot">[spec]</span>, <span class="slot">[known issues]</span>.
+
+For each finding:
+- A comment or test states the reason: DOWNGRADE to <span class="slot">[lowest tier]</span>.
+- A doc calls it accepted: no change. Quote the doc in a note.
+- The behavior matches the spec the code claims to follow: KILL and cite the clause.
+
+No written statement means KEEP.</pre></div>
+  </details>
+  <div class="prose">
+    <p>The second round is mostly about privileged roles. When an admin has to attack its own users on purpose, this results in the lowest severity, and an honest mistake (wrong parameter, typo etc.) is Info or invalid depending on the ruleset, but when the admin acts correctly and users still lose funds because of how the code behaves, this is a regular bug and the severity stays.</p>
+    <p>In the third round, comments and tests lower the severity to Info, since they show what the developers intended. Docs that simply call a behavior accepted only get attached as a note, because otherwise any issue could be closed by adding a sentence to the README, while an issue gets removed when the behavior matches a spec the code claims to follow (an ERC for example).</p>
+    <h3>Trade-offs</h3>
+    <p>This approach needs three runs instead of one, but each round only has to check one thing, so it misses a lot less. What often goes wrong is one round removing issues for reasons that belong to another round (the code round dismissing an issue because an admin is involved etc.), which the rule to stay inside its own question reduces, but doesn't fully prevent.</p>
+  </div>
+
+</section>
+
+<!-- COUNCIL -->
+<section class="paper" id="council">
+  <header class="chap">
+    <div class="mark vk">03</div>
+    <p class="eyebrow">Approach 2 of 6</p>
+    <h2>Council</h2>
+  </header>
+  <div class="prose">
+    <p>In a council, multiple agents validate the same issue in separate contexts, each of them looking for reasons why it is invalid, and a final agent decides based on their outputs. This works because a single agent often misses the one reason that invalidates an issue, while it is a lot less likely that several independent agents all miss it. Runs of the same model with the same prompt mostly reach the same result though, which is why a council can be enhanced by using different models, different effort levels and slightly different prompts for its members.</p>
+  </div>
+  <div class="promptbox"><div class="ph"><span>Council member</span><button type="button" class="copy" data-copy="p-member">Copy</button></div><pre class="prompt" id="p-member">Validate this finding. Other reviewers check it too, but you cannot see them.
+
+Finding: <span class="slot">[location, claim]</span>
+
+Look for every reason it could be invalid: a check that blocks it, a precondition nobody can reach, a wrong number, a trusted actor, intended behavior.
+Every reason needs a file and line or a calculation. If you find none, say so.</pre></div>
+  <div class="promptbox"><div class="ph"><span>Council judge</span><button type="button" class="copy" data-copy="p-cjudge">Copy</button></div><pre class="prompt" id="p-cjudge">You get one finding and <span class="slot">[number]</span> reviews.
+
+- Open every cited line. Drop reasons without a line or calculation.
+- Do not count votes. One reason that holds is enough.
+- Verdict: KEEP, DOWNGRADE, KILL or SPLIT.
+- SPLIT: the reviews disagree on a fact you could not settle. Name it.</pre></div>
+  <div class="prose">
+    <h3>Trade-offs</h3>
+    <p>A council needs one run per member plus the judge for every issue, which makes it expensive and mostly worth it for potential Crits/Highs. It also doesn't help when all members share the same blind spot, which is usually the case when they run on the same model. The most useful output is often the SPLIT verdict, since it names the exact fact the SR has to check.</p>
+  </div>
+</section>
+
+<!-- FRESH JUDGE -->
+<section class="paper" id="judge">
+  <header class="chap">
+    <div class="mark vr">04</div>
+    <p class="eyebrow">Approach 3 of 6</p>
+    <h2>Fresh judge</h2>
+  </header>
+  <div class="prose">
+    <p>A cheap approach is to never let the agent that discovered an issue also judge it. This is because the discovering agent has the whole reasoning that led to the issue in its context, so when asked if it is sure, it will mostly confirm itself. For the same reason the judge should not get the full write-up but only the location and a one sentence claim, since a long and confident report convinces an agent just as easily as it convinces a human.</p>
+  </div>
+  <div class="promptbox"><div class="ph"><span>Fresh judge</span><button type="button" class="copy" data-copy="p-fjudge">Copy</button></div><pre class="prompt" id="p-fjudge">Judge this finding.
+Location: <span class="slot">[file and lines]</span>
+Claim: <span class="slot">[one sentence]</span>
+
+1. Say who acts, what they call and what goes wrong.
+2. Read the whole path and every check on it.
+3. Verdict: VALID, INVALID (name the line) or UNCLEAR (say what would settle it).</pre></div>
+  <div class="prose">
+    <p>Quite a few issues already fall apart at step 1, because it turns out that nobody can actually name the attacker. When a second model is available, it helps to use it as the judge, since different models tend to make different mistakes.</p>
+    <h3>Trade-offs</h3>
+    <p>This only needs one run per issue, but it is still a single agent that has to check everything at once, which means it can miss something the same way, so it works best as a first filter before a stricter approach.</p>
+  </div>
+</section>
+
+<!-- TESTS -->
+<section class="paper" id="tests">
+  <header class="chap">
+    <div class="mark vk">05</div>
+    <p class="eyebrow">Approach 4 of 6</p>
+    <h2>PoCs</h2>
+  </header>
+  <div class="prose">
+    <p>The strongest way to validate an issue is a PoC that actually runs the attack, starting from a public function, with an attacker that has no special permissions, and ending with a measurable loss for the victim.</p>
+  </div>
+  <div class="promptbox"><div class="ph"><span>Proof</span><button type="button" class="copy" data-copy="p-proof">Copy</button></div><pre class="prompt" id="p-proof">Write one test per finding at <span class="slot">[tier]</span> or above.
+
+- Start from a public function. The attacker is a new address with no roles.
+- Reach every precondition through public calls. No storage writes.
+- Use the constants from the code. Local chain only.
+- Assert the damage: who loses how much.
+- If the attack fails, try <span class="slot">[two edge cases]</span> before calling the finding wrong.
+
+Result: PROVEN, NOT PROVEN or DISPROVEN, with the test output.</pre></div>
+  <div class="prose">
+    <p>A failing PoC is not always a reason to dismiss the issue. When the test fails because of its own setup (a missing approval for example), this says nothing about the issue, and when it fails with comfortable values, the edge values still have to be tried.</p>
+    <h3>Cheating PoCs</h3>
+    <p>The bigger problem is PoCs that pass when they shouldn't. This is because agents that are asked to prove an issue are conditioned to deliver a passing test, so they will mostly deliver one, even if this means cheating: writing the broken state directly into storage, calling internal functions no attacker can reach, deploying a simplified copy of the contract or only asserting that a call succeeded without checking who actually lost funds. These PoCs can mostly not be spotted from the test output, which is why a second agent that did not write the PoC reviews it.</p>
+  </div>
+  <div class="promptbox"><div class="ph"><span>Test review</span><button type="button" class="copy" data-copy="p-review">Copy</button></div><pre class="prompt" id="p-review">You did not write this test. Does it prove this finding: <span class="slot">[claim]</span>?
+
+1. Does the attack start at a public function, from an address with no role?
+2. Does it write storage, act as a trusted role, or give the attacker balances inside the audited contracts?
+3. Does it run against the real contracts?
+4. Does it assert who loses how much?
+5. Would it still pass if the bug were fixed?
+
+Verdict: PROVES IT, PROVES SOMETHING ELSE or PROVES NOTHING.</pre></div>
+  <div class="prose">
+    <h3>Trade-offs</h3>
+    <p>PoCs are the slowest and most expensive approach, so they are mostly worth it for Mediums and above. Some issues also can't be tested locally at all, for example when they depend on the behavior of an external protocol on mainnet. These issues are unproven, which is not the same as invalid, so the severity should stay where the impact would put it.</p>
+  </div>
+
+</section>
+
+<!-- RULESETS -->
+<section class="paper" id="rules">
+  <header class="chap">
+    <div class="mark vr">06</div>
+    <p class="eyebrow">Approach 5 of 6</p>
+    <h2>Rulesets</h2>
+  </header>
+  <div class="prose">
+    <p>Without the actual rules, an agent grades from memory, which is a mix of every severity guide it has seen during training. For contests this means providing the platform's judging rules and the contest page, and for bounties the scope and the list of impacts, while private audits usually don't have written rules, so the client has to be asked directly (which roles are trusted, which tokens will be used, what counts as a loss etc.).</p>
+  </div>
+  <div class="promptbox"><div class="ph"><span>Rules for this audit</span><button type="button" class="copy" data-copy="p-ruleset">Copy</button></div><pre class="prompt" id="p-ruleset">Platform or client: <span class="slot">[name]</span>
+Severity rules: <span class="slot">[paste word for word]</span>
+Trusted roles: <span class="slot">[list]</span>
+Tokens in scope: <span class="slot">[list]</span>
+Out of scope: <span class="slot">[paste]</span>
+
+Use and quote these rules. Where none applies, say so.</pre></div>
+  <div class="prose">
+    <p>A summary of the rules is not enough, since the agent then grades against the summary, which is why the rules get pasted word for word. The grading itself happens at the very end, on the issues that survived everything else.</p>
+  </div>
+  <div class="promptbox"><div class="ph"><span>Grading</span><button type="button" class="copy" data-copy="p-grade">Copy</button></div><pre class="prompt" id="p-grade">Rules: <span class="slot">[paste the severity rules]</span>
+
+For each proven finding:
+1. Quote the rule that puts it at its tier.
+2. Give the case for one tier higher and for one tier lower.
+3. Say which wins.
+
+An unproven finding keeps the severity its damage would deserve.</pre></div>
+  <div class="prose">
+    <p>Arguing for and against a tier is mostly useful for issues that got downgraded, since nobody else will challenge an SR who lowers the severity of their own issue.</p>
+    <h3>Trade-offs</h3>
+    <p>This costs a few minutes of copying per audit and nothing per issue. With very long rulesets, agents tend to apply the first parts carefully and the later parts loosely, so each round should only get the part it needs.</p>
+  </div>
+</section>
+
+<!-- KNOWN ISSUES -->
+<section class="paper" id="known">
+  <header class="chap">
+    <div class="mark vk">07</div>
+    <p class="eyebrow">Approach 6 of 6</p>
+    <h2>Known issues</h2>
+  </header>
+  <div class="prose">
+    <p>Issues that repeat a known issue, a finding from a previous audit or a documented design choice are invalid on almost every platform, but agents still report them from time to time. Since this check is cheap, it makes sense to run it before everything else.</p>
+  </div>
+  <div class="promptbox"><div class="ph"><span>Known issues</span><button type="button" class="copy" data-copy="p-known">Copy</button></div><pre class="prompt" id="p-known">Sources: <span class="slot">[known issues]</span>, <span class="slot">[earlier audits]</span>, <span class="slot">[design docs]</span>
+
+A finding matches an entry only with the same code path and the same root cause.
+
+- Matches an acknowledged entry: KILL and name it.
+- Matches an entry marked fixed, and the bug is still there: KEEP.
+- Same area, different path or cause: KEEP and note the entry.
+
+When unsure, KEEP.</pre></div>
+  <div class="prose">
+    <p>Agents sometimes match an issue to a known one simply because both are located in the same function, which is why a match requires both the same code path and the same root cause. An entry that is marked as fixed also doesn't invalidate an issue when the bug is still present in the code, since in this case the fix simply didn't work, which is a legit issue on its own.</p>
+    <h3>Trade-offs</h3>
+    <p>This approach is nearly free, but when it is tuned too loosely, it can remove variants (new bugs right next to a known one) that are actually valid, so a high number of removed issues should be reviewed by hand.</p>
+  </div>
+</section>
+
+<!-- EXAMPLE -->
+<section class="paper" id="example">
+  <header class="chap">
+    <div class="mark vr">08</div>
+    <h2>Practical example</h2>
+  </header>
+  <div class="prose">
+    <p>Let's assume we review a small vault contract, a classic ERC-4626. Users can deposit stablecoins for shares and burn them to receive back the coins. The owner takes a withdrawal fee. We also have some guidelines according to the ruleset provided for this audit by the devs: only standard 6-decimal stablecoins, and the owner is a trusted multisig. They also linked a previous audit. Let's see how we could use our pipeline here to avoid submitting invalid findings.</p>
+    <h3>Ten issues</h3>
+    <p>An agent reported ten issues for it: five Highs, four Mediums and one Low.</p>
+  </div>
+  <div class="tablewrap"><table class="narrow">
+    <thead><tr><th>#</th><th>Issue</th><th>Claimed</th></tr></thead>
+    <tbody><tr><th>1</th><td>First depositor takes the next deposit</td><td><span class="sev high">High</span></td></tr><tr><th>2</th><td>Reentrancy in withdraw</td><td><span class="sev high">High</span></td></tr><tr><th>3</th><td>Owner can set the fee to 100%</td><td><span class="sev high">High</span></td></tr><tr><th>4</th><td>Splitting a withdrawal avoids the fee</td><td><span class="sev high">High</span></td></tr><tr><th>5</th><td>Withdrawals work while paused</td><td><span class="sev med">Medium</span></td></tr><tr><th>6</th><td>Fee-on-transfer tokens break the share count</td><td><span class="sev med">Medium</span></td></tr><tr><th>7</th><td>Owner can block deposits by pausing</td><td><span class="sev med">Medium</span></td></tr><tr><th>8</th><td>No event when the fee changes</td><td><span class="sev low">Low</span></td></tr><tr><th>9</th><td>A large withdrawal lowers the share price for everyone else</td><td><span class="sev high">High</span></td></tr><tr><th>10</th><td>A fee change hits deposits made earlier</td><td><span class="sev med">Medium</span></td></tr></tbody>
+  </table></div>
+  <div class="board" role="img" aria-label="Status of the ten findings"><span class="chip high"><b>1</b>H</span><span class="chip high"><b>2</b>H</span><span class="chip high"><b>3</b>H</span><span class="chip high"><b>4</b>H</span><span class="chip med"><b>5</b>M</span><span class="chip med"><b>6</b>M</span><span class="chip med"><b>7</b>M</span><span class="chip low"><b>8</b>L</span><span class="chip high"><b>9</b>H</span><span class="chip med"><b>10</b>M</span></div>
+  <div class="prose">
+    <h3>Known issues</h3>
+    <p>The previous audit already reported that the owner can pause deposits indefinitely, which the team acknowledged. Issue 7 describes the same function and the same root cause, so it gets removed. Issue 5 is also about pausing, but since it concerns a different function and a different cause, it stays.</p>
+  </div>
+  <div class="board" role="img" aria-label="Status of the ten findings"><span class="chip high"><b>1</b>H</span><span class="chip high"><b>2</b>H</span><span class="chip high"><b>3</b>H</span><span class="chip high"><b>4</b>H</span><span class="chip med"><b>5</b>M</span><span class="chip med"><b>6</b>M</span><span class="chip dead chg"><b>7</b>out</span><span class="chip low"><b>8</b>L</span><span class="chip high"><b>9</b>H</span><span class="chip med"><b>10</b>M</span></div>
+  <div class="prose">
+    <h3>Triage round 1</h3>
+    <p>Issue 2 points at the internal <code>_withdraw</code>, which sends the tokens before burning the shares, but the only public function that reaches it is <code>withdraw</code> in the base contract, which uses <code>nonReentrant</code>, so it gets removed.</p>
+  </div>
+  <div class="board" role="img" aria-label="Status of the ten findings"><span class="chip high"><b>1</b>H</span><span class="chip dead chg"><b>2</b>out</span><span class="chip high"><b>3</b>H</span><span class="chip high"><b>4</b>H</span><span class="chip med"><b>5</b>M</span><span class="chip med"><b>6</b>M</span><span class="chip dead"><b>7</b>out</span><span class="chip low"><b>8</b>L</span><span class="chip high"><b>9</b>H</span><span class="chip med"><b>10</b>M</span></div>
+  <div class="prose">
+    <h3>Triage round 2</h3>
+    <p>Issue 3 requires the owner to attack its own users on purpose, which results in Informational since the owner is trusted.</p>
+    <p>Issue 4 is legit, but the impact is tiny, since the fee is calculated as <code>amount * 50 / 10_000</code> and rounded down, so the owner loses less than one unit (0.000001 of a token) per withdrawal. This means that avoiding the fee on a single token would take 5,026 transactions to save half a cent, so this is a Low, and since small amounts can't remove an issue, it doesn't go lower.</p>
+    <p>Issue 6 only works with fee-on-transfer tokens, which the ruleset excludes, so it gets removed.</p>
+    <p>Issue 10 also involves the owner, but here the owner acts honestly: the fee gets raised for legit reasons and everyone who deposited under the old fee pays the new one when withdrawing. Users lose funds without anybody acting maliciously, so the Medium stays.</p>
+  </div>
+  <div class="board" role="img" aria-label="Status of the ten findings"><span class="chip high"><b>1</b>H</span><span class="chip dead"><b>2</b>out</span><span class="chip info chg"><b>3</b>Info</span><span class="chip low chg"><b>4</b>L</span><span class="chip med"><b>5</b>M</span><span class="chip dead chg"><b>6</b>out</span><span class="chip dead"><b>7</b>out</span><span class="chip low"><b>8</b>L</span><span class="chip high"><b>9</b>H</span><span class="chip med"><b>10</b>M</span></div>
+
+
+  <div class="prose">
+    <h3>Triage round 3</h3>
+    <p>Right above withdraw there is a comment: <code>// Withdrawals stay open while the vault is paused, so users can always leave.</code> This is a stated reason, so issue 5 gets lowered to Informational, but a comment alone is not enough to remove it.</p>
+    <p>For issue 10 it is the other way around. Above <code>setFee</code> there is a comment: <code>// A new fee only applies to deposits made after the change.</code> The code however charges the new fee on every withdrawal, which means the team did not choose this behavior, so the Medium stays.</p>
+  </div>
+  <div class="board" role="img" aria-label="Status of the ten findings"><span class="chip high"><b>1</b>H</span><span class="chip dead"><b>2</b>out</span><span class="chip info"><b>3</b>Info</span><span class="chip low"><b>4</b>L</span><span class="chip info chg"><b>5</b>Info</span><span class="chip dead"><b>6</b>out</span><span class="chip dead"><b>7</b>out</span><span class="chip low"><b>8</b>L</span><span class="chip high"><b>9</b>H</span><span class="chip med"><b>10</b>M</span></div>
+  <div class="prose">
+    <h3>PoCs</h3>
+    <p>Issues 1, 9 and 10 are still at Medium or above, so each of them gets a PoC and a review.</p>
+    <p>The first PoC for issue 1 fails: with a first deposit of 1,000 tokens and a donation of 1,000, the victim gets everything back except the fee. With a first deposit of one unit and a donation of 10,000 tokens however, the victim receives 0 shares for 5,000 tokens and the attacker ends up with a profit of 4,925, which proves the issue.</p>
+    <p>Issue 9 comes back with a passing PoC, but the review shows that the test set the share price by writing to storage. After rewriting it to only use deposit and withdraw, the attack fails with three different amounts and the issue gets removed.</p>
+    <p>Issue 10 is proven with a five-line PoC (deposit, raise the fee, withdraw, compare).</p>
+  </div>
+  <div class="board" role="img" aria-label="Status of the ten findings"><span class="chip high"><b>1</b>H</span><span class="chip dead"><b>2</b>out</span><span class="chip info"><b>3</b>Info</span><span class="chip low"><b>4</b>L</span><span class="chip info"><b>5</b>Info</span><span class="chip dead"><b>6</b>out</span><span class="chip dead"><b>7</b>out</span><span class="chip low"><b>8</b>L</span><span class="chip dead chg"><b>9</b>out</span><span class="chip med"><b>10</b>M</span></div>
+  <div class="prose">
+    <h3>Grading</h3>
+    <p>Grading doesn't change anything here, and issue 8 went through every stage untouched.</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Claimed</th><th>Ends as</th><th>Decided by</th></tr></thead>
+    <tbody>
+      <tr><th>1</th><td><span class="sev high">High</span></td><td><span class="sev high">High</span>, proven</td><td>PoC: works at a 1-unit deposit</td></tr>
+      <tr><th>2</th><td><span class="sev high">High</span></td><td><span class="v kill">OUT</span></td><td>Triage round 1: lock on the public caller</td></tr>
+      <tr><th>3</th><td><span class="sev high">High</span></td><td><span class="sev info">Informational</span></td><td>Triage round 2: trusted owner, on purpose</td></tr>
+      <tr><th>4</th><td><span class="sev high">High</span></td><td><span class="sev low">Low</span></td><td>Triage round 2: under one unit per withdrawal</td></tr>
+      <tr><th>5</th><td><span class="sev med">Medium</span></td><td><span class="sev info">Informational</span></td><td>Triage round 3: a comment gives the reason</td></tr>
+      <tr><th>6</th><td><span class="sev med">Medium</span></td><td><span class="v kill">OUT</span></td><td>Triage round 2: token type is out of scope</td></tr>
+      <tr><th>7</th><td><span class="sev med">Medium</span></td><td><span class="v kill">OUT</span></td><td>Known issues: acknowledged in the earlier audit</td></tr>
+      <tr><th>8</th><td><span class="sev low">Low</span></td><td><span class="sev low">Low</span></td><td>Nothing changed it</td></tr>
+      <tr><th>9</th><td><span class="sev high">High</span></td><td><span class="v kill">OUT</span></td><td>PoC: the passing one cheated, the honest one fails</td></tr>
+      <tr><th>10</th><td><span class="sev med">Medium</span></td><td><span class="sev med">Medium</span>, proven</td><td>Triage round 3: the code contradicts a comment, the PoC passes</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- CONCLUSION -->
+<section class="paper" id="end">
+  <header class="chap">
+    <div class="mark vk">09</div>
+    <h2>Conclusion</h2>
+  </header>
+  <div class="prose">
+    <p>As you have probably noticed while reading through this guide, it's impossible to build a perfect setup. Either you sacrifice accuracy or time and resources. That's why it's important to fine-tune your own pipeline exactly to your needs.</p>
+    <p>If you are an auditor and have days or weeks to assess one well-scoped codebase, you can afford to have a permissive pipeline with a relatively high false positive rate, since you have the time and knowledge of the codebase to filter the remaining findings yourself or downgrade them.</p>
+    <p>If you are a bounty hunter looking at a new large codebase every few days, you need to make sure your pipeline is extra accurate so you don't spam incorrect findings, but this can potentially lead to you missing a true positive from time to time, and costs more tokens.</p>
+    <p>So to conclude this lesson, use the examples above, adapt them to your purpose and make sure you never become an AI spammer!</p>
+  </div>
+</section>
+
+<footer>Heavyw8t's Security Academy · content licensed CC BY 4.0</footer>
+</main>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',()=>{
+  const t=$(b.dataset.copy).textContent;
+  const done=()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1400)};
+  try{navigator.clipboard.writeText(t).then(done,()=>{b.textContent='Select and copy by hand'})}
+  catch(e){b.textContent='Select and copy by hand'}}));
+const links=[...document.querySelectorAll('.rail a')],secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+function onScroll(){const h=document.documentElement,max=h.scrollHeight-h.clientHeight;$('prog').style.width=(max>0?h.scrollTop/max*100:0)+'%';
+  let cur=0;secs.forEach((s,i)=>{if(s&&s.getBoundingClientRect().top<140)cur=i});links.forEach((a,i)=>a.classList.toggle('on',i===cur));}
+window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+
+</script>
+</body>
+</html>
